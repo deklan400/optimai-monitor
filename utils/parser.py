@@ -1,31 +1,16 @@
 import re
 
 
-def parse_reward(output):
-    """
-    Extract reward value from CLI output
-    """
-
-    if not output:
+def parse_reward(text):
+    if not text:
         return None
 
-    try:
-        match = re.search(r"Total rewards:\s*([0-9.]+)", output)
+    match = re.search(r"Total rewards:\s*([0-9.]+)", text)
 
-        if match:
+    if match:
+        try:
             return float(match.group(1))
-
-    except Exception as e:
-        print(f"[PARSER ERROR] {e}")
+        except:
+            return None
 
     return None
-
-
-def is_valid_output(output):
-    if not output:
-        return False
-
-    if "Total rewards" in output:
-        return True
-
-    return False
