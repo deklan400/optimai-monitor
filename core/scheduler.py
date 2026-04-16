@@ -10,7 +10,7 @@ from config import CHECK_INTERVAL, REPORT_INTERVAL
 
 
 def run(vps_dict):
-    last_report_time = time.time()
+    last_report_time = 0
 
     while True:
         log("=== CHECK VPS ===")
