@@ -1,39 +1,32 @@
 import subprocess
 
-def run_ssh_command(host, command, timeout=10):
+
+def run_ssh(host, command):
     try:
         result = subprocess.run(
             ["ssh", "-o", "ConnectTimeout=5", host, command],
             capture_output=True,
             text=True,
-            timeout=timeout
+            timeout=10
         )
 
         if result.returncode != 0:
-            return None, result.stderr.strip()
+            return None
 
-        return result.stdout.strip(), None
+        return result.stdout.strip()
 
-    except Exception as e:
-        return None, str(e)
+    except Exception:
+        return None
 
 
-def get_node_status(host):
-    output, error = run_ssh_command(host, "systemctl is-active optimai")
+def get_status(host):
+    output = run_ssh(host, "systemctl is-active optimai")
 
-    if error or output is None:
-        return "down"
-
-    if "active" in output:
+    if output == "active":
         return "running"
 
     return "down"
 
 
-def get_node_reward(host):
-    output, error = run_ssh_command(host, "optimai-cli rewards balance")
-
-    if error or output is None:
-        return None
-
-    return output
+def get_reward_raw(host):
+    return run_ssh(host, "optimai-cli rewards balance")
