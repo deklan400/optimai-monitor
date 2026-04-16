@@ -1,5 +1,5 @@
-from services.ssh_client import get_node_status, get_node_reward
-from utils.parser import parse_reward, is_valid_output
+from services.ssh_client import get_status, get_reward_raw
+from utils.parser import parse_reward
 
 
 def check_vps(name, host):
@@ -11,16 +11,14 @@ def check_vps(name, host):
     }
 
     # cek status
-    status = get_node_status(host)
+    status = get_status(host)
     data["status"] = status
 
-    # cek reward kalau hidup
+    # kalau running → ambil reward
     if status == "running":
-        raw = get_node_reward(host)
-
-        if is_valid_output(raw):
-            reward = parse_reward(raw)
-            data["reward"] = reward
+        raw = get_reward_raw(host)
+        reward = parse_reward(raw)
+        data["reward"] = reward
 
     return data
 
@@ -30,6 +28,7 @@ def check_all_vps(vps_dict):
 
     for name, host in vps_dict.items():
         print(f"[CHECK] {name} ({host})")
+
         result = check_vps(name, host)
         results.append(result)
 
