@@ -11,15 +11,15 @@ def check_status_change(current_data, last_state):
         # simpan state baru
         new_state[name] = status
 
-        # skip first run
+        # pertama kali → skip
         if last_status is None:
             continue
 
-        # detect change
+        # kalau berubah
         if status != last_status:
             if status == "running":
                 alerts.append(f"✅ {name} : RUNNING KEMBALI")
-            elif status == "down":
+            else:
                 alerts.append(f"⚠️ {name} : ❌ DOWN")
 
     return alerts, new_state
