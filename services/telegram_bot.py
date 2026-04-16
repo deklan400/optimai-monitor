@@ -13,6 +13,10 @@ def send_message(text):
         print("[TELEGRAM] Token / Chat ID belum diset")
         return
 
+    # limit message
+    if len(text) > 4000:
+        text = text[:4000] + "\n...(cut)"
+
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
 
     payload = {
@@ -21,6 +25,10 @@ def send_message(text):
     }
 
     try:
-        requests.post(url, json=payload, timeout=10)
+        res = requests.post(url, json=payload, timeout=10)
+
+        if res.status_code != 200:
+            print(f"[TELEGRAM ERROR] {res.text}")
+
     except Exception as e:
         print(f"[TELEGRAM ERROR] {e}")
