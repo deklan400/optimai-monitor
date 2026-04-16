@@ -9,6 +9,10 @@ CHAT_ID = os.getenv("CHAT_ID")
 
 
 def send_message(text):
+    if not BOT_TOKEN or not CHAT_ID:
+        print("[TELEGRAM] Token / Chat ID belum diset")
+        return
+
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
 
     payload = {
