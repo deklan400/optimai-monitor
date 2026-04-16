@@ -1,29 +1,30 @@
 import time
+
 from core.monitor import check_all_vps
 from core.tracker import load_state, save_state, load_rewards, save_rewards
 from core.alert import check_status_change
 from core.reporter import generate_report
 from services.telegram_bot import send_message
 from utils.logger import log
+from config import CHECK_INTERVAL, REPORT_INTERVAL
 
 
-CHECK_INTERVAL = 1800      # 30 menit
-REPORT_INTERVAL = 10800    # 3 jam
-
-
-def run(vps_list):
+def run(vps_dict):
     last_report_time = time.time()
 
     while True:
-        log("Checking VPS...")
+        log("=== CHECK VPS ===")
 
-        current_data = check_all_vps(vps_list)
+        # ambil data VPS
+        current_data = check_all_vps(vps_dict)
 
         # load data lama
         last_state = load_state()
         last_rewards = load_rewards()
 
-        # cek alert
+        # ======================
+        # ALERT SYSTEM
+        # ======================
         alerts, new_state = check_status_change(current_data, last_state)
 
         for alert in alerts:
@@ -33,18 +34,28 @@ def run(vps_list):
         # simpan state
         save_state(new_state)
 
-        # simpan reward terbaru
+        # ======================
+        # SAVE REWARD
+        # ======================
         new_rewards = {}
+
         for item in current_data:
-            if item["reward"] is not None:
-                new_rewards[item["host"]] = item["reward"]
+            name = item["name"]
+            reward = item["reward"]
+
+            if reward is not None:
+                new_rewards[name] = reward
 
         save_rewards(new_rewards)
 
-        # cek apakah sudah 3 jam
+        # ======================
+        # REPORT SYSTEM
+        # ======================
         now = time.time()
+
         if now - last_report_time >= REPORT_INTERVAL:
             report = generate_report(current_data, last_rewards)
+
             log("Sending report...")
             send_message(report)
 
