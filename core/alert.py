@@ -3,23 +3,23 @@ def check_status_change(current_data, last_state):
     new_state = {}
 
     for item in current_data:
-        host = item["host"]
+        name = item["name"]
         status = item["status"]
 
-        last_status = last_state.get(host)
+        last_status = last_state.get(name)
 
         # simpan state baru
-        new_state[host] = status
+        new_state[name] = status
 
-        # skip kalau pertama kali
+        # skip first run
         if last_status is None:
             continue
 
-        # kalau berubah
+        # detect change
         if status != last_status:
             if status == "running":
-                alerts.append(f"✅ {host} : RUNNING KEMBALI")
+                alerts.append(f"✅ {name} : RUNNING KEMBALI")
             elif status == "down":
-                alerts.append(f"⚠️ {host} : ❌ DOWN")
+                alerts.append(f"⚠️ {name} : ❌ DOWN")
 
     return alerts, new_state
