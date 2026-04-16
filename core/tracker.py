@@ -20,8 +20,8 @@ def save_json(path, data):
     try:
         with open(path, "w") as f:
             json.dump(data, f, indent=4)
-    except:
-        pass
+    except Exception as e:
+        print(f"[TRACKER ERROR] {e}")
 
 
 # ======================
