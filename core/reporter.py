@@ -6,14 +6,14 @@ def generate_report(current_data, last_rewards):
     report_lines.append("🔥 OPTIMAI REPORT (3 JAM)\n")
 
     for item in current_data:
-        host = item["host"]
+        name = item["name"]
         status = item["status"]
         reward = item["reward"]
 
         if reward is None:
             diff = 0
         else:
-            last = last_rewards.get(host, reward)
+            last = last_rewards.get(name, reward)
 
             if reward < last:
                 diff = 0
@@ -23,9 +23,9 @@ def generate_report(current_data, last_rewards):
         total_diff += diff
         total_all += int(reward) if reward else 0
 
-        status_icon = "✅" if status == "running" else "❌"
+        icon = "✅" if status == "running" else "❌"
 
-        report_lines.append(f"{host} : {status_icon} | +{diff}")
+        report_lines.append(f"{name} : {icon} | +{diff}")
 
     report_lines.append("\n------------------------")
     report_lines.append(f"💰 Total 3 Jam : {total_diff}")
