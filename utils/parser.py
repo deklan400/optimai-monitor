@@ -5,7 +5,7 @@ def parse_reward(text):
     if not text:
         return None
 
-    match = re.search(r"Total rewards:\s*([0-9.]+)", text)
+    match = re.search(r"Total rewards\s*:\s*([0-9.]+)", text, re.IGNORECASE)
 
     if match:
         try:
