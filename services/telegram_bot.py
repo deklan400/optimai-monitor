@@ -4,10 +4,7 @@ import re
 import time
 from dotenv import load_dotenv
 from core.vps_store import add_vps, delete_vps, load_vps
-from core.monitor import check_all_vps
-from core.alert import check_status_change
-from core.reporter import generate_report
-from core.tracker import load_state, save_state, load_rewards, save_rewards
+from core.check_cycle import run_check_cycle
 from services.ssh_bootstrap import setup_ssh_key_with_password
 
 load_dotenv()
@@ -116,23 +113,10 @@ def _run_manual_check(chat_id):
 
     _send_with_keyboard(chat_id, "⏳ Menjalankan check manual...", [[{"text": MENU_LIST}, {"text": MENU_ADD}], [{"text": MENU_DELETE}, {"text": MENU_CHECK_NOW}]])
 
-    current_data = check_all_vps(vps_dict)
-    last_state = load_state()
-    last_rewards = load_rewards()
-
-    alerts, new_state = check_status_change(current_data, last_state)
+    alerts, report = run_check_cycle(vps_dict)
     for alert in alerts:
         send_message(alert)
 
-    save_state(new_state)
-
-    new_rewards = {}
-    for item in current_data:
-        if item["reward"] is not None:
-            new_rewards[item["name"]] = item["reward"]
-    save_rewards(new_rewards)
-
-    report = generate_report(current_data, last_rewards)
     _send_with_keyboard(chat_id, report, [[{"text": MENU_LIST}, {"text": MENU_ADD}], [{"text": MENU_DELETE}, {"text": MENU_CHECK_NOW}]])
 
 
