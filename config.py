@@ -10,5 +10,5 @@ VPS_LIST = {
 # ========================
 # INTERVAL
 # ========================
-CHECK_INTERVAL = 1800      # 30 menit
+CHECK_INTERVAL = 60        # 1 menit (alert lebih cepat)
 REPORT_INTERVAL = 10800    # 3 jam

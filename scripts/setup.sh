@@ -12,7 +12,7 @@ apt update -y && apt upgrade -y
 # =========================
 # INSTALL DEPENDENCIES
 # =========================
-apt install -y python3 python3-pip git
+apt install -y python3 python3-pip git screen openssh-client
 
 # =========================
 # INSTALL PYTHON LIB

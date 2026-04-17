@@ -32,7 +32,8 @@ def generate_report(current_data, last_rewards):
 
         report_lines.append(f"{name} : {icon} | +{int(diff)}")
 
-    report_lines.append("\n------------------------")
+    report_lines.append("")
+    report_lines.append("------------------------")
     report_lines.append(f"💰 Total 3 Jam : {int(total_diff)}")
     report_lines.append(f"💰 Total All   : {int(total_all)}")
 

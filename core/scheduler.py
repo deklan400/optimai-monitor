@@ -9,11 +9,21 @@ from utils.logger import log
 from config import CHECK_INTERVAL, REPORT_INTERVAL
 
 
-def run(vps_dict):
+def run(vps_source):
     last_report_time = 0
 
     while True:
         log("=== CHECK VPS ===")
+
+        if callable(vps_source):
+            vps_dict = vps_source()
+        else:
+            vps_dict = vps_source
+
+        if not vps_dict:
+            log("[WARNING] Daftar VPS kosong, skip check")
+            time.sleep(CHECK_INTERVAL)
+            continue
 
         # ambil data VPS
         current_data = check_all_vps(vps_dict)
@@ -61,5 +71,9 @@ def run(vps_dict):
 
             last_report_time = now
 
-        log("Sleep 30 menit...\n")
+        sleep_minutes = CHECK_INTERVAL // 60
+        if sleep_minutes > 0:
+            log(f"Sleep {sleep_minutes} menit...\n")
+        else:
+            log(f"Sleep {CHECK_INTERVAL} detik...\n")
         time.sleep(CHECK_INTERVAL)
