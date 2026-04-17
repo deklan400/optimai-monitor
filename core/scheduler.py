@@ -7,7 +7,9 @@ from config import CHECK_INTERVAL, REPORT_INTERVAL
 
 
 def run(vps_source):
-    last_report_time = 0
+    # Mulai hitung interval dari waktu bot dijalankan, agar report 3 jam
+    # tidak langsung terkirim saat startup/restart.
+    last_report_time = time.time()
 
     while True:
         log("=== CHECK VPS ===")
