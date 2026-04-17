@@ -25,12 +25,13 @@ def generate_report(current_data, last_rewards):
 
             reward_val = reward
 
-        total_diff += diff
+        display_diff = int(diff)
+        total_diff += display_diff
         total_all += reward_val
 
         icon = "✅" if status == "running" else "❌"
 
-        report_lines.append(f"{name} : {icon} | +{int(diff)}")
+        report_lines.append(f"{name} : {icon} | +{display_diff}")
 
     report_lines.append("")
     report_lines.append("------------------------")
