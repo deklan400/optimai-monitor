@@ -4,6 +4,10 @@ import re
 import time
 from dotenv import load_dotenv
 from core.vps_store import add_vps, delete_vps, load_vps
+from core.monitor import check_all_vps
+from core.alert import check_status_change
+from core.reporter import generate_report
+from core.tracker import load_state, save_state, load_rewards, save_rewards
 from services.ssh_bootstrap import setup_ssh_key_with_password
 
 load_dotenv()
@@ -16,6 +20,7 @@ USER_STATE = {}
 MENU_LIST = "📋 List VPS"
 MENU_ADD = "➕ Tambah VPS"
 MENU_DELETE = "❌ Hapus VPS"
+MENU_CHECK_NOW = "⚡ Check Manual"
 MENU_CANCEL = "🔙 Batal"
 MENU_SKIP_PASSWORD = "⏭️ Lewati Password"
 
@@ -74,7 +79,7 @@ def _send_with_keyboard(chat_id, text, keyboard_rows):
 def send_menu(chat_id):
     keyboard = [
         [{"text": MENU_LIST}, {"text": MENU_ADD}],
-        [{"text": MENU_DELETE}],
+        [{"text": MENU_DELETE}, {"text": MENU_CHECK_NOW}],
     ]
     _send_with_keyboard(chat_id, "Pilih menu:", keyboard)
 
@@ -101,6 +106,34 @@ def _render_vps_list():
     for name, host in sorted(vps_dict.items()):
         lines.append(f"- {name}: {host}")
     return "\n".join(lines)
+
+
+def _run_manual_check(chat_id):
+    vps_dict = load_vps()
+    if not vps_dict:
+        _send_with_keyboard(chat_id, "Daftar VPS masih kosong.", [[{"text": MENU_LIST}, {"text": MENU_ADD}], [{"text": MENU_DELETE}, {"text": MENU_CHECK_NOW}]])
+        return
+
+    _send_with_keyboard(chat_id, "⏳ Menjalankan check manual...", [[{"text": MENU_LIST}, {"text": MENU_ADD}], [{"text": MENU_DELETE}, {"text": MENU_CHECK_NOW}]])
+
+    current_data = check_all_vps(vps_dict)
+    last_state = load_state()
+    last_rewards = load_rewards()
+
+    alerts, new_state = check_status_change(current_data, last_state)
+    for alert in alerts:
+        send_message(alert)
+
+    save_state(new_state)
+
+    new_rewards = {}
+    for item in current_data:
+        if item["reward"] is not None:
+            new_rewards[item["name"]] = item["reward"]
+    save_rewards(new_rewards)
+
+    report = generate_report(current_data, last_rewards)
+    _send_with_keyboard(chat_id, report, [[{"text": MENU_LIST}, {"text": MENU_ADD}], [{"text": MENU_DELETE}, {"text": MENU_CHECK_NOW}]])
 
 
 def _start_add_flow(chat_id):
@@ -130,7 +163,7 @@ def _handle_stateful_message(chat_id, text):
 
     if text == MENU_CANCEL:
         USER_STATE.pop(key, None)
-        _send_with_keyboard(chat_id, "Aksi dibatalkan.", [[{"text": MENU_LIST}, {"text": MENU_ADD}], [{"text": MENU_DELETE}]])
+        _send_with_keyboard(chat_id, "Aksi dibatalkan.", [[{"text": MENU_LIST}, {"text": MENU_ADD}], [{"text": MENU_DELETE}, {"text": MENU_CHECK_NOW}]])
         return True
 
     if state["step"] == "await_name":
@@ -174,7 +207,7 @@ def _handle_stateful_message(chat_id, text):
         if text == MENU_SKIP_PASSWORD:
             add_vps(name, host)
             USER_STATE.pop(key, None)
-            _send_with_keyboard(chat_id, f"✅ VPS ditambahkan (tanpa setup key):\n- {name}: {host}", [[{"text": MENU_LIST}, {"text": MENU_ADD}], [{"text": MENU_DELETE}]])
+            _send_with_keyboard(chat_id, f"✅ VPS ditambahkan (tanpa setup key):\n- {name}: {host}", [[{"text": MENU_LIST}, {"text": MENU_ADD}], [{"text": MENU_DELETE}, {"text": MENU_CHECK_NOW}]])
             return True
 
         password = text.strip()
@@ -194,7 +227,7 @@ def _handle_stateful_message(chat_id, text):
 
         add_vps(name, host)
         USER_STATE.pop(key, None)
-        _send_with_keyboard(chat_id, f"✅ VPS ditambahkan dan SSH key sukses:\n- {name}: {host}", [[{"text": MENU_LIST}, {"text": MENU_ADD}], [{"text": MENU_DELETE}]])
+        _send_with_keyboard(chat_id, f"✅ VPS ditambahkan dan SSH key sukses:\n- {name}: {host}", [[{"text": MENU_LIST}, {"text": MENU_ADD}], [{"text": MENU_DELETE}, {"text": MENU_CHECK_NOW}]])
         return True
 
     if state["step"] == "await_delete_name":
@@ -202,9 +235,9 @@ def _handle_stateful_message(chat_id, text):
         deleted = delete_vps(name)
         USER_STATE.pop(key, None)
         if deleted:
-            _send_with_keyboard(chat_id, f"✅ VPS dihapus: {name}", [[{"text": MENU_LIST}, {"text": MENU_ADD}], [{"text": MENU_DELETE}]])
+            _send_with_keyboard(chat_id, f"✅ VPS dihapus: {name}", [[{"text": MENU_LIST}, {"text": MENU_ADD}], [{"text": MENU_DELETE}, {"text": MENU_CHECK_NOW}]])
         else:
-            _send_with_keyboard(chat_id, "Nama VPS tidak ditemukan.", [[{"text": MENU_LIST}, {"text": MENU_ADD}], [{"text": MENU_DELETE}]])
+            _send_with_keyboard(chat_id, "Nama VPS tidak ditemukan.", [[{"text": MENU_LIST}, {"text": MENU_ADD}], [{"text": MENU_DELETE}, {"text": MENU_CHECK_NOW}]])
         return True
 
     return False
@@ -212,7 +245,7 @@ def _handle_stateful_message(chat_id, text):
 
 def _handle_menu(chat_id, text):
     if text == MENU_LIST:
-        _send_with_keyboard(chat_id, _render_vps_list(), [[{"text": MENU_LIST}, {"text": MENU_ADD}], [{"text": MENU_DELETE}]])
+        _send_with_keyboard(chat_id, _render_vps_list(), [[{"text": MENU_LIST}, {"text": MENU_ADD}], [{"text": MENU_DELETE}, {"text": MENU_CHECK_NOW}]])
         return
     if text == MENU_ADD:
         _start_add_flow(chat_id)
@@ -220,8 +253,11 @@ def _handle_menu(chat_id, text):
     if text == MENU_DELETE:
         _start_delete_flow(chat_id)
         return
+    if text == MENU_CHECK_NOW:
+        _run_manual_check(chat_id)
+        return
 
-    _send_with_keyboard(chat_id, "Menu tidak dikenali. Pilih tombol yang tersedia.", [[{"text": MENU_LIST}, {"text": MENU_ADD}], [{"text": MENU_DELETE}]])
+    _send_with_keyboard(chat_id, "Menu tidak dikenali. Pilih tombol yang tersedia.", [[{"text": MENU_LIST}, {"text": MENU_ADD}], [{"text": MENU_DELETE}, {"text": MENU_CHECK_NOW}]])
 
 
 def _fetch_updates(offset):
