@@ -47,3 +47,37 @@ def generate_report(current_data, last_rewards, report_title="🔥 OPTIMAI REPOR
     report_lines.append(f"📍 Sumber Total: {total_source_node}")
 
     return "\n".join(report_lines)
+
+
+def generate_manual_report(current_data, report_title="⚡ OPTIMAI CHECK MANUAL"):
+    report_lines = []
+    total_all = 0.0
+    total_source_node = "-"
+
+    report_lines.append(f"{report_title}\n")
+
+    sorted_data = sorted(current_data, key=lambda item: item["name"].lower())
+
+    for item in sorted_data:
+        name = item["name"]
+        status = item["status"]
+        reward = item["reward"]
+        icon = "✅" if status == "running" else "❌"
+
+        if reward is None:
+            reward_text = "-"
+        else:
+            reward_text = str(int(reward))
+
+        report_lines.append(f"{name} : {icon} | R:{reward_text}")
+
+        if total_source_node == "-" and status == "running" and reward is not None:
+            total_source_node = name
+            total_all = reward
+
+    report_lines.append("")
+    report_lines.append("------------------------")
+    report_lines.append(f"💰 Total All   : {int(total_all)}")
+    report_lines.append(f"📍 Sumber Total: {total_source_node}")
+
+    return "\n".join(report_lines)
