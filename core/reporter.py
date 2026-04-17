@@ -1,10 +1,10 @@
-def generate_report(current_data, last_rewards):
+def generate_report(current_data, last_rewards, report_title="🔥 OPTIMAI REPORT (3 JAM)"):
     report_lines = []
     total_diff = 0
     total_all = 0.0
     total_source_node = "-"
 
-    report_lines.append("🔥 OPTIMAI REPORT (3 JAM)\n")
+    report_lines.append(f"{report_title}\n")
 
     sorted_data = sorted(current_data, key=lambda item: item["name"].lower())
 

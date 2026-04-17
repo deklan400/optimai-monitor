@@ -113,7 +113,7 @@ def _run_manual_check(chat_id):
 
     _send_with_keyboard(chat_id, "⏳ Menjalankan check manual...", [[{"text": MENU_LIST}, {"text": MENU_ADD}], [{"text": MENU_DELETE}, {"text": MENU_CHECK_NOW}]])
 
-    alerts, report = run_check_cycle(vps_dict)
+    alerts, report = run_check_cycle(vps_dict, report_title="⚡ OPTIMAI CHECK MANUAL")
     for alert in alerts:
         send_message(alert)
 

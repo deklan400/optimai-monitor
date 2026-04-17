@@ -8,7 +8,7 @@ from core.tracker import load_rewards, load_state, save_rewards, save_state
 _CHECK_LOCK = threading.Lock()
 
 
-def run_check_cycle(vps_dict):
+def run_check_cycle(vps_dict, report_title="🔥 OPTIMAI REPORT (3 JAM)"):
     with _CHECK_LOCK:
         current_data = check_all_vps(vps_dict)
 
@@ -24,5 +24,5 @@ def run_check_cycle(vps_dict):
                 new_rewards[item["name"]] = item["reward"]
         save_rewards(new_rewards)
 
-        report = generate_report(current_data, last_rewards)
+        report = generate_report(current_data, last_rewards, report_title=report_title)
         return alerts, report
