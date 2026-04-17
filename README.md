@@ -15,7 +15,9 @@ Manajemen VPS dilakukan lewat tombol menu Telegram (tanpa perlu command teks).
 4. Jalankan bot, lalu kelola daftar VPS lewat menu Telegram:
    - `📋 List VPS`
    - `➕ Tambah VPS`
+   - `✏️ Edit VPS`
    - `❌ Hapus VPS`
+   - `🔍 Test SSH` (per node / semua node)
    - `⚡ Check Manual` untuk cek langsung tanpa tunggu report 3 jam
    - saat tambah VPS, bot bisa minta password SSH untuk auto setup `ssh-copy-id`
 5. Pastikan SSH key dari VPS monitor sudah bisa login ke semua node tanpa password.

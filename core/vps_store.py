@@ -60,3 +60,12 @@ def delete_vps(name):
     del data[name]
     save_vps(data)
     return True
+
+
+def update_vps(name, host):
+    data = load_vps()
+    if name not in data:
+        return False
+    data[name] = host
+    save_vps(data)
+    return True
