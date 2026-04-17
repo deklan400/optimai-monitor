@@ -16,6 +16,7 @@ Manajemen VPS dilakukan lewat tombol menu Telegram (tanpa perlu command teks).
    - `📋 List VPS`
    - `➕ Tambah VPS`
    - `❌ Hapus VPS`
+   - saat tambah VPS, bot bisa minta password SSH untuk auto setup `ssh-copy-id`
 5. Pastikan SSH key dari VPS monitor sudah bisa login ke semua node tanpa password.
 6. Jalankan bot:
    - `python3 main.py`
@@ -28,3 +29,8 @@ Manajemen VPS dilakukan lewat tombol menu Telegram (tanpa perlu command teks).
   - `🔥 OPTIMAI REPORT (3 JAM)`
   - per node: `vpsX : ✅|❌ | +N`
   - total: `💰 Total 3 Jam` dan `💰 Total All`
+
+## Catatan keamanan
+
+- Password SSH yang dikirim lewat Telegram dipakai sekali untuk setup key, lalu dibuang.
+- Tetap disarankan setelah setup selesai gunakan login SSH berbasis key, bukan password.

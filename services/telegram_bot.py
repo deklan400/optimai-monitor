@@ -4,6 +4,7 @@ import re
 import time
 from dotenv import load_dotenv
 from core.vps_store import add_vps, delete_vps, load_vps
+from services.ssh_bootstrap import setup_ssh_key_with_password
 
 load_dotenv()
 
@@ -16,6 +17,7 @@ MENU_LIST = "📋 List VPS"
 MENU_ADD = "➕ Tambah VPS"
 MENU_DELETE = "❌ Hapus VPS"
 MENU_CANCEL = "🔙 Batal"
+MENU_SKIP_PASSWORD = "⏭️ Lewati Password"
 
 
 def send_message(text):
@@ -153,9 +155,46 @@ def _handle_stateful_message(chat_id, text):
             return True
 
         name = state["name"]
+        USER_STATE[key] = {"step": "await_password", "name": name, "host": host}
+        _send_with_keyboard(
+            chat_id,
+            (
+                f"Masukkan password SSH untuk {host}.\n"
+                "Password hanya dipakai sekali untuk setup key.\n"
+                "Atau klik tombol lewati jika key sudah terpasang."
+            ),
+            [[{"text": MENU_SKIP_PASSWORD}], [{"text": MENU_CANCEL}]],
+        )
+        return True
+
+    if state["step"] == "await_password":
+        name = state["name"]
+        host = state["host"]
+
+        if text == MENU_SKIP_PASSWORD:
+            add_vps(name, host)
+            USER_STATE.pop(key, None)
+            _send_with_keyboard(chat_id, f"✅ VPS ditambahkan (tanpa setup key):\n- {name}: {host}", [[{"text": MENU_LIST}, {"text": MENU_ADD}], [{"text": MENU_DELETE}]])
+            return True
+
+        password = text.strip()
+        if not password:
+            _send_with_keyboard(chat_id, "Password kosong. Masukkan password atau pilih lewati.", [[{"text": MENU_SKIP_PASSWORD}], [{"text": MENU_CANCEL}]])
+            return True
+
+        _send_with_keyboard(chat_id, f"Sedang setup SSH key ke {host}...", [[{"text": MENU_CANCEL}]])
+        ok, detail = setup_ssh_key_with_password(host, password)
+        if not ok:
+            _send_with_keyboard(
+                chat_id,
+                f"❌ Gagal setup SSH key:\n{detail}\n\nCoba kirim password lagi atau klik lewati.",
+                [[{"text": MENU_SKIP_PASSWORD}], [{"text": MENU_CANCEL}]],
+            )
+            return True
+
         add_vps(name, host)
         USER_STATE.pop(key, None)
-        _send_with_keyboard(chat_id, f"✅ VPS ditambahkan:\n- {name}: {host}", [[{"text": MENU_LIST}, {"text": MENU_ADD}], [{"text": MENU_DELETE}]])
+        _send_with_keyboard(chat_id, f"✅ VPS ditambahkan dan SSH key sukses:\n- {name}: {host}", [[{"text": MENU_LIST}, {"text": MENU_ADD}], [{"text": MENU_DELETE}]])
         return True
 
     if state["step"] == "await_delete_name":

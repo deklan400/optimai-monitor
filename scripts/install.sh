@@ -15,7 +15,7 @@ echo "[STEP] Update package index..."
 sudo apt update -y
 
 echo "[STEP] Install dependency sistem..."
-sudo apt install -y python3 python3-venv python3-pip openssh-client screen
+sudo apt install -y python3 python3-venv python3-pip openssh-client screen sshpass
 
 echo "[STEP] Buat virtualenv..."
 if [[ ! -d ".venv" ]]; then
