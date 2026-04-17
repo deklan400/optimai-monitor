@@ -20,6 +20,19 @@ Manajemen VPS dilakukan lewat tombol menu Telegram (tanpa perlu command teks).
 5. Pastikan SSH key dari VPS monitor sudah bisa login ke semua node tanpa password.
 6. Jalankan bot:
    - `python3 main.py`
+   - atau setup service otomatis: `bash scripts/install.sh` lalu pilih opsi `3`
+
+## Menjalankan dengan systemd (disarankan)
+
+1. Pastikan dependency + `.env` sudah siap (paling gampang via `bash scripts/install.sh`)
+2. Install service:
+   - `sudo bash scripts/setup_systemd.sh`
+3. Cek status:
+   - `sudo systemctl status optimai-monitor`
+4. Cek log real-time:
+   - `sudo journalctl -u optimai-monitor -f`
+5. Restart manual jika perlu:
+   - `sudo systemctl restart optimai-monitor`
 
 ## Output bot
 

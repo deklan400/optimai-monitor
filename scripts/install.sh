@@ -51,7 +51,8 @@ echo
 echo "Pilih mode run:"
 echo "1) Run langsung (foreground)"
 echo "2) Run background (screen)"
-read -r -p "Pilih [1/2]: " MODE
+echo "3) Install systemd service (recommended)"
+read -r -p "Pilih [1/2/3]: " MODE
 
 if [[ "${MODE}" == "2" ]]; then
   echo "[STEP] Menjalankan di background via screen..."
@@ -59,6 +60,10 @@ if [[ "${MODE}" == "2" ]]; then
   echo "[OK] Bot berjalan di background."
   echo "Cek: screen -ls"
   echo "Attach: screen -r optimai-monitor"
+elif [[ "${MODE}" == "3" ]]; then
+  echo "[STEP] Setup systemd service..."
+  chmod +x scripts/setup_systemd.sh
+  sudo bash scripts/setup_systemd.sh
 else
   echo "[STEP] Menjalankan bot..."
   python main.py
