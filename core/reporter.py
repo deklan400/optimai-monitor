@@ -1,6 +1,14 @@
+import re
+
+
+def _natural_key(value):
+    """Urutkan nama seperti OptimAI_1, OptimAI_2, ..., OptimAI_10."""
+    return [int(part) if part.isdigit() else part.lower() for part in re.split(r"(\d+)", value)]
+
+
 def get_account_reward(current_data):
     """Kembalikan (saldo akun, nama node sumber) dari satu node yang valid."""
-    sorted_data = sorted(current_data, key=lambda item: item["name"].lower())
+    sorted_data = sorted(current_data, key=lambda item: _natural_key(item["name"]))
 
     for item in sorted_data:
         reward = item.get("reward")
@@ -40,7 +48,7 @@ def generate_report(current_data, last_snapshot, report_title="🔥 OPTIMAI REPO
     total_submitted = 0
     total_failed = 0
 
-    sorted_data = sorted(current_data, key=lambda item: item["name"].lower())
+    sorted_data = sorted(current_data, key=lambda item: _natural_key(item["name"]))
 
     for item in sorted_data:
         metrics = item.get("metrics")
@@ -77,7 +85,7 @@ def generate_manual_report(current_data, report_title="⚡ OPTIMAI CHECK MANUAL"
     total_submitted = 0
     total_failed = 0
 
-    sorted_data = sorted(current_data, key=lambda item: item["name"].lower())
+    sorted_data = sorted(current_data, key=lambda item: _natural_key(item["name"]))
 
     for item in sorted_data:
         metrics = item.get("metrics")
