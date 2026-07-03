@@ -2,30 +2,46 @@ import threading
 
 from core.alert import check_status_change
 from core.monitor import check_all_vps
-from core.reporter import generate_manual_report, generate_report
-from core.tracker import load_rewards, load_state, save_rewards, save_state
+from core.reporter import generate_manual_report, generate_report, get_account_reward
+from core.tracker import (
+    load_reward_snapshot,
+    load_state,
+    save_reward_snapshot,
+    save_state,
+)
 
 _CHECK_LOCK = threading.Lock()
 
 
-def run_check_cycle(vps_dict, report_title="🔥 OPTIMAI REPORT (3 JAM)", report_type="scheduled"):
+def run_check_cycle(vps_dict, report_title="🔥 OPTIMAI REPORT (3 JAM)", report_type="status"):
     with _CHECK_LOCK:
-        current_data = check_all_vps(vps_dict)
+        needs_report_data = report_type in {"scheduled", "manual", "baseline"}
+        metrics_hours = 3 if report_type in {"scheduled", "manual"} else None
+
+        current_data = check_all_vps(
+            vps_dict,
+            include_reward=needs_report_data,
+            metrics_hours=metrics_hours,
+        )
 
         last_state = load_state()
-        last_rewards = load_rewards()
-
         alerts, new_state = check_status_change(current_data, last_state)
         save_state(new_state)
 
-        new_rewards = {}
-        for item in current_data:
-            if item["reward"] is not None:
-                new_rewards[item["name"]] = item["reward"]
-        save_rewards(new_rewards)
-
-        if report_type == "manual":
+        if report_type == "baseline":
+            current_total, source_node = get_account_reward(current_data)
+            if current_total is not None:
+                save_reward_snapshot(current_total, source_node)
+            report = None
+        elif report_type == "manual":
             report = generate_manual_report(current_data, report_title=report_title)
+        elif report_type == "scheduled":
+            last_snapshot = load_reward_snapshot()
+            report = generate_report(current_data, last_snapshot, report_title=report_title)
+            current_total, source_node = get_account_reward(current_data)
+            if current_total is not None:
+                save_reward_snapshot(current_total, source_node)
         else:
-            report = generate_report(current_data, last_rewards, report_title=report_title)
+            report = None
+
         return alerts, report
