@@ -1,10 +1,18 @@
-import requests
 import os
 import re
 import time
+
+import requests
 from dotenv import load_dotenv
-from core.vps_store import add_vps, delete_vps, load_vps, update_vps
+
 from core.check_cycle import run_check_cycle
+from core.vps_store import add_vps, delete_vps, load_vps, update_vps
+from services.feature_handlers import (
+    build_daily_history_report,
+    build_detail_report,
+    build_ranking_report,
+    build_weekly_history_report,
+)
 from services.ssh_bootstrap import setup_ssh_key_with_password
 from services.ssh_client import test_ssh_connection
 
@@ -21,13 +29,16 @@ MENU_DELETE = "❌ Hapus VPS"
 MENU_EDIT = "✏️ Edit VPS"
 MENU_TEST_SSH = "🔍 Test SSH"
 MENU_CHECK_NOW = "⚡ Check Manual"
+MENU_DETAIL = "🔎 Detail VPS"
+MENU_RANKING = "🏆 Ranking Harian"
+MENU_HISTORY_DAILY = "📅 Riwayat Harian"
+MENU_HISTORY_WEEKLY = "📈 Riwayat Mingguan"
 MENU_CANCEL = "🔙 Batal"
 MENU_SKIP_PASSWORD = "⏭️ Lewati Password"
 MENU_TEST_ALL = "🔍 Test Semua VPS"
 
 
 def _natural_key(value):
-    """Urutkan nama bernomor secara alami: 1, 2, 3, ..., 10."""
     return [
         int(part) if part.isdigit() else part.lower()
         for part in re.split(r"(\d+)", value)
@@ -47,6 +58,8 @@ def _main_keyboard():
         [{"text": MENU_LIST}, {"text": MENU_ADD}],
         [{"text": MENU_EDIT}, {"text": MENU_DELETE}],
         [{"text": MENU_TEST_SSH}, {"text": MENU_CHECK_NOW}],
+        [{"text": MENU_DETAIL}, {"text": MENU_RANKING}],
+        [{"text": MENU_HISTORY_DAILY}, {"text": MENU_HISTORY_WEEKLY}],
     ]
 
 
@@ -55,23 +68,16 @@ def send_message(text):
         print("[TELEGRAM] Token / Chat ID belum diset")
         return
 
-    # limit message
     if len(text) > 4000:
         text = text[:4000] + "\n...(cut)"
 
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-
-    payload = {
-        "chat_id": CHAT_ID,
-        "text": text
-    }
+    payload = {"chat_id": CHAT_ID, "text": text}
 
     try:
         res = requests.post(url, json=payload, timeout=10)
-
         if res.status_code != 200:
             print(f"[TELEGRAM ERROR] {res.text}")
-
     except Exception as e:
         print(f"[TELEGRAM ERROR] {e}")
 
@@ -102,8 +108,7 @@ def _send_with_keyboard(chat_id, text, keyboard_rows):
 
 
 def send_menu(chat_id):
-    keyboard = _main_keyboard()
-    _send_with_keyboard(chat_id, "Pilih menu:", keyboard)
+    _send_with_keyboard(chat_id, "Pilih menu:", _main_keyboard())
 
 
 def _is_valid_name(name):
@@ -114,9 +119,7 @@ def _is_valid_host(host):
     if "@" not in host:
         return False
     user, target = host.split("@", 1)
-    if not user or not target:
-        return False
-    return True
+    return bool(user and target)
 
 
 def _render_vps_list():
@@ -137,7 +140,6 @@ def _run_manual_check(chat_id):
         return
 
     _send_with_keyboard(chat_id, "⏳ Menjalankan check manual...", _main_keyboard())
-
     alerts, report = run_check_cycle(
         vps_dict,
         report_title="⚡ OPTIMAI CHECK MANUAL",
@@ -145,14 +147,43 @@ def _run_manual_check(chat_id):
     )
     for alert in alerts:
         send_message(alert)
-
     _send_with_keyboard(chat_id, report, _main_keyboard())
+
+
+def _run_ranking(chat_id):
+    vps_dict = load_vps()
+    if not vps_dict:
+        _send_with_keyboard(chat_id, "Daftar VPS masih kosong.", _main_keyboard())
+        return
+
+    _send_with_keyboard(chat_id, "⏳ Menghitung ranking harian...", _main_keyboard())
+    report = build_ranking_report(vps_dict)
+    _send_with_keyboard(chat_id, report, _main_keyboard())
+
+
+def _run_daily_history(chat_id):
+    _send_with_keyboard(chat_id, build_daily_history_report(), _main_keyboard())
+
+
+def _run_weekly_history(chat_id):
+    _send_with_keyboard(chat_id, build_weekly_history_report(), _main_keyboard())
+
+
+def _start_detail_flow(chat_id):
+    vps_dict = load_vps()
+    if not vps_dict:
+        _send_with_keyboard(chat_id, "Daftar VPS masih kosong.", _main_keyboard())
+        return
+
+    USER_STATE[str(chat_id)] = {"step": "await_detail_name"}
+    rows = [[{"text": name}] for name in _sorted_vps_names(vps_dict)]
+    rows.append([{"text": MENU_CANCEL}])
+    _send_with_keyboard(chat_id, "Pilih VPS untuk melihat detail:", rows)
 
 
 def _start_add_flow(chat_id):
     USER_STATE[str(chat_id)] = {"step": "await_name"}
-    keyboard = [[{"text": MENU_CANCEL}]]
-    _send_with_keyboard(chat_id, "Masukkan nama VPS (contoh: vps3):", keyboard)
+    _send_with_keyboard(chat_id, "Masukkan nama VPS (contoh: vps3):", [[{"text": MENU_CANCEL}]])
 
 
 def _start_delete_flow(chat_id):
@@ -194,7 +225,6 @@ def _run_test_all(chat_id):
             lines.append(f"✅ {name} ({host}) : OK")
         else:
             lines.append(f"❌ {name} ({host}) : {detail}")
-
     _send_with_keyboard(chat_id, "\n".join(lines), _main_keyboard())
 
 
@@ -222,6 +252,21 @@ def _handle_stateful_message(chat_id, text):
         _send_with_keyboard(chat_id, "Aksi dibatalkan.", _main_keyboard())
         return True
 
+    if state["step"] == "await_detail_name":
+        name = text.strip()
+        vps_dict = load_vps()
+        host = vps_dict.get(name)
+        if not host:
+            rows = [[{"text": n}] for n in _sorted_vps_names(vps_dict)]
+            rows.append([{"text": MENU_CANCEL}])
+            _send_with_keyboard(chat_id, "Nama VPS tidak ditemukan. Pilih dari tombol.", rows)
+            return True
+
+        USER_STATE.pop(key, None)
+        _send_with_keyboard(chat_id, f"⏳ Mengambil detail {name}...", _main_keyboard())
+        _send_with_keyboard(chat_id, build_detail_report(name, host), _main_keyboard())
+        return True
+
     if state["step"] == "await_name":
         name = text.strip()
         if not _is_valid_name(name):
@@ -247,11 +292,7 @@ def _handle_stateful_message(chat_id, text):
         USER_STATE[key] = {"step": "await_password", "name": name, "host": host}
         _send_with_keyboard(
             chat_id,
-            (
-                f"Masukkan password SSH untuk {host}.\n"
-                "Password hanya dipakai sekali untuk setup key.\n"
-                "Atau klik tombol lewati jika key sudah terpasang."
-            ),
+            f"Masukkan password SSH untuk {host}.\nPassword hanya dipakai sekali untuk setup key.\nAtau klik tombol lewati jika key sudah terpasang.",
             [[{"text": MENU_SKIP_PASSWORD}], [{"text": MENU_CANCEL}]],
         )
         return True
@@ -274,11 +315,7 @@ def _handle_stateful_message(chat_id, text):
         _send_with_keyboard(chat_id, f"Sedang setup SSH key ke {host}...", [[{"text": MENU_CANCEL}]])
         ok, detail = setup_ssh_key_with_password(host, password)
         if not ok:
-            _send_with_keyboard(
-                chat_id,
-                f"❌ Gagal setup SSH key:\n{detail}\n\nCoba kirim password lagi atau klik lewati.",
-                [[{"text": MENU_SKIP_PASSWORD}], [{"text": MENU_CANCEL}]],
-            )
+            _send_with_keyboard(chat_id, f"❌ Gagal setup SSH key:\n{detail}\n\nCoba kirim password lagi atau klik lewati.", [[{"text": MENU_SKIP_PASSWORD}], [{"text": MENU_CANCEL}]])
             return True
 
         add_vps(name, host)
@@ -290,7 +327,8 @@ def _handle_stateful_message(chat_id, text):
         name = text.strip()
         vps_dict = load_vps()
         if name not in vps_dict:
-            _send_with_keyboard(chat_id, "Nama VPS tidak ditemukan. Pilih dari tombol.", [[{"text": n}] for n in _sorted_vps_names(vps_dict)] + [[{"text": MENU_CANCEL}]])
+            rows = [[{"text": n}] for n in _sorted_vps_names(vps_dict)] + [[{"text": MENU_CANCEL}]]
+            _send_with_keyboard(chat_id, "Nama VPS tidak ditemukan. Pilih dari tombol.", rows)
             return True
 
         USER_STATE[key] = {"step": "await_edit_host", "name": name}
@@ -304,11 +342,10 @@ def _handle_stateful_message(chat_id, text):
             return True
 
         name = state["name"]
+        USER_STATE.pop(key, None)
         if update_vps(name, host):
-            USER_STATE.pop(key, None)
             _send_with_keyboard(chat_id, f"✅ VPS diperbarui:\n- {name}: {host}", _main_keyboard())
         else:
-            USER_STATE.pop(key, None)
             _send_with_keyboard(chat_id, "Nama VPS tidak ditemukan saat update.", _main_keyboard())
         return True
 
@@ -316,10 +353,8 @@ def _handle_stateful_message(chat_id, text):
         name = text.strip()
         deleted = delete_vps(name)
         USER_STATE.pop(key, None)
-        if deleted:
-            _send_with_keyboard(chat_id, f"✅ VPS dihapus: {name}", _main_keyboard())
-        else:
-            _send_with_keyboard(chat_id, "Nama VPS tidak ditemukan.", _main_keyboard())
+        message = f"✅ VPS dihapus: {name}" if deleted else "Nama VPS tidak ditemukan."
+        _send_with_keyboard(chat_id, message, _main_keyboard())
         return True
 
     if state["step"] == "await_test_name":
@@ -332,7 +367,8 @@ def _handle_stateful_message(chat_id, text):
         vps_dict = load_vps()
         host = vps_dict.get(name)
         if not host:
-            _send_with_keyboard(chat_id, "Nama VPS tidak ditemukan. Pilih dari tombol.", [[{"text": MENU_TEST_ALL}]] + [[{"text": n}] for n in _sorted_vps_names(vps_dict)] + [[{"text": MENU_CANCEL}]])
+            rows = [[{"text": MENU_TEST_ALL}]] + [[{"text": n}] for n in _sorted_vps_names(vps_dict)] + [[{"text": MENU_CANCEL}]]
+            _send_with_keyboard(chat_id, "Nama VPS tidak ditemukan. Pilih dari tombol.", rows)
             return True
 
         USER_STATE.pop(key, None)
@@ -350,24 +386,26 @@ def _handle_stateful_message(chat_id, text):
 def _handle_menu(chat_id, text):
     if text == MENU_LIST:
         _send_with_keyboard(chat_id, _render_vps_list(), _main_keyboard())
-        return
-    if text == MENU_ADD:
+    elif text == MENU_ADD:
         _start_add_flow(chat_id)
-        return
-    if text == MENU_EDIT:
+    elif text == MENU_EDIT:
         _start_edit_flow(chat_id)
-        return
-    if text == MENU_DELETE:
+    elif text == MENU_DELETE:
         _start_delete_flow(chat_id)
-        return
-    if text == MENU_TEST_SSH:
+    elif text == MENU_TEST_SSH:
         _start_test_ssh_flow(chat_id)
-        return
-    if text == MENU_CHECK_NOW:
+    elif text == MENU_CHECK_NOW:
         _run_manual_check(chat_id)
-        return
-
-    _send_with_keyboard(chat_id, "Menu tidak dikenali. Pilih tombol yang tersedia.", _main_keyboard())
+    elif text == MENU_DETAIL:
+        _start_detail_flow(chat_id)
+    elif text == MENU_RANKING:
+        _run_ranking(chat_id)
+    elif text == MENU_HISTORY_DAILY:
+        _run_daily_history(chat_id)
+    elif text == MENU_HISTORY_WEEKLY:
+        _run_weekly_history(chat_id)
+    else:
+        _send_with_keyboard(chat_id, "Menu tidak dikenali. Pilih tombol yang tersedia.", _main_keyboard())
 
 
 def _fetch_updates(offset):
@@ -375,9 +413,7 @@ def _fetch_updates(offset):
         return []
 
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/getUpdates"
-    payload = {"timeout": 25, "offset": offset}
-    res = _post(url, payload)
-
+    res = _post(url, {"timeout": 25, "offset": offset})
     if not res or res.status_code != 200:
         return []
 
@@ -386,9 +422,7 @@ def _fetch_updates(offset):
     except Exception:
         return []
 
-    if not body.get("ok"):
-        return []
-    return body.get("result", [])
+    return body.get("result", []) if body.get("ok") else []
 
 
 def start_menu_listener():
@@ -412,8 +446,7 @@ def start_menu_listener():
             if not msg:
                 continue
 
-            chat = msg.get("chat", {})
-            chat_id = str(chat.get("id", ""))
+            chat_id = str(msg.get("chat", {}).get("id", ""))
             text = msg.get("text", "")
             if not text:
                 continue
