@@ -66,9 +66,12 @@ def run_check_cycle(
             include_details=include_details,
         )
 
-        last_state = load_state()
-        alerts, new_state = check_status_change(current_data, last_state)
-        save_state(new_state)
+        if report_type == "detail":
+            alerts = []
+        else:
+            last_state = load_state()
+            alerts, new_state = check_status_change(current_data, last_state)
+            save_state(new_state)
 
         current_total, source_node = get_account_reward(current_data)
 
