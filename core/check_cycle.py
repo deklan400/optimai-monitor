@@ -73,7 +73,12 @@ def run_check_cycle(
         current_total, source_node = get_account_reward(current_data)
 
         if needs_metrics:
-            day_key = str(snapshot_date or current_local_date())
+            if snapshot_date is not None:
+                day_key = str(snapshot_date)
+            elif report_type == "daily":
+                day_key = str(current_local_date() - timedelta(days=1))
+            else:
+                day_key = str(current_local_date())
             save_daily_snapshot(day_key, current_data, current_total, source_node)
 
         if report_type == "baseline":
