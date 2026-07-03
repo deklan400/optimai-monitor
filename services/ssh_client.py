@@ -69,10 +69,7 @@ def get_status(host):
     if not output:
         return "down"
 
-    if "active" in output:
-        return "running"
-
-    return "down"
+    return "running" if output.strip() == "active" else "down"
 
 
 def get_reward_raw(host):
