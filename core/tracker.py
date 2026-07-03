@@ -4,6 +4,7 @@ import time
 
 STATE_FILE = "data/state.json"
 REWARD_FILE = "data/rewards.json"
+DAILY_STATE_FILE = "data/daily_report_state.json"
 
 
 def load_json(path):
@@ -30,9 +31,6 @@ def save_json(path, data):
         print(f"[TRACKER ERROR] {e}")
 
 
-# ======================
-# STATE (STATUS VPS)
-# ======================
 def load_state():
     return load_json(STATE_FILE)
 
@@ -41,15 +39,10 @@ def save_state(state):
     save_json(STATE_FILE, state)
 
 
-# ======================
-# SNAPSHOT REWARD AKUN
-# ======================
 def load_reward_snapshot():
     data = load_json(REWARD_FILE)
     total = data.get("account_total")
 
-    # Format lama berisi saldo per-node dan memang tidak valid untuk akun yang
-    # sama. Abaikan agar bot membuat baseline baru setelah update.
     if not isinstance(total, (int, float)):
         return {}
 
@@ -70,6 +63,20 @@ def save_reward_snapshot(account_total, source_node):
     )
 
 
+def load_daily_report_state():
+    return load_json(DAILY_STATE_FILE)
+
+
+def save_daily_report_state(active_date):
+    save_json(
+        DAILY_STATE_FILE,
+        {
+            "active_date": str(active_date),
+            "updated_at": int(time.time()),
+        },
+    )
+
+
 # Alias kompatibilitas untuk kode lama.
 def load_rewards():
     return load_reward_snapshot()
@@ -79,4 +86,7 @@ def save_rewards(rewards):
     if not isinstance(rewards, dict):
         return
 
-    save_reward_snapshot(rewards.get("account_total"), rewards.get("source_node", "-"))
+    save_reward_snapshot(
+        rewards.get("account_total"),
+        rewards.get("source_node", "-"),
+    )
