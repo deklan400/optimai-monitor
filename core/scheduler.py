@@ -1,7 +1,8 @@
 import time
+from datetime import timedelta
 
 from config import CHECK_INTERVAL, REPORT_INTERVAL
-from core.check_cycle import run_check_cycle
+from core.check_cycle import current_local_date, day_window_utc, run_check_cycle
 from services.telegram_bot import send_message
 from utils.logger import log
 
@@ -18,6 +19,7 @@ def _send_alerts(alerts):
 
 def run(vps_source):
     last_report_time = time.time()
+    last_local_date = current_local_date()
     baseline_ready = False
 
     while True:
@@ -38,9 +40,26 @@ def run(vps_source):
 
         _send_alerts(alerts)
 
+        current_date = current_local_date()
+        if current_date != last_local_date:
+            report_date = current_date - timedelta(days=1)
+            metrics_since, metrics_until = day_window_utc(report_date)
+            report_title = f"📊 OPTIMAI REPORT HARIAN ({report_date.strftime('%d-%m-%Y')})"
+            daily_alerts, daily_report = run_check_cycle(
+                vps_dict,
+                report_title=report_title,
+                report_type="daily",
+                metrics_since=metrics_since,
+                metrics_until=metrics_until,
+            )
+            _send_alerts(daily_alerts)
+            if daily_report:
+                send_message(daily_report)
+            last_local_date = current_date
+
         now = time.time()
         if now - last_report_time >= REPORT_INTERVAL:
-            log("Sending report...")
+            log("Sending 3-hour report...")
             report_alerts, report = run_check_cycle(vps_dict, report_type="scheduled")
             _send_alerts(report_alerts)
             if report:
