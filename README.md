@@ -1,7 +1,19 @@
 # optimai-monitor
 
-Monitor banyak VPS Optimai dari 1 VPS monitor (Ubuntu 22), kirim alert status realtime (berdasarkan interval check) dan report reward tiap 3 jam ke Telegram.
-Manajemen VPS dilakukan lewat tombol menu Telegram (tanpa perlu command teks).
+Monitor banyak VPS OptimAI dari satu VPS monitor, kirim alert status, report 3 jam, laporan harian, ranking, detail node, dan riwayat aktivitas ke Telegram.
+
+## Fitur
+
+- Status semua node dan alert DOWN/RUNNING KEMBALI
+- Check Manual dengan data kumulatif sejak pukul 00:00
+- Assignment dihitung berdasarkan ID unik
+- Submit sukses, gagal final, pending, dan retry sukses
+- Report otomatis setiap 3 jam
+- Report harian setelah pergantian hari
+- Ranking performa harian
+- Detail satu VPS: status, RAM, disk, Docker, uptime, dan aktivitas
+- Riwayat harian dan ringkasan 7 hari
+- Urutan VPS natural: 1, 2, 3, ..., 10
 
 ## Setup cepat
 
@@ -11,42 +23,42 @@ Manajemen VPS dilakukan lewat tombol menu Telegram (tanpa perlu command teks).
    - `pip3 install -r requirements.txt`
 3. Siapkan env:
    - `cp .env.example .env`
-   - isi `BOT_TOKEN` dan `CHAT_ID`
-4. Jalankan bot, lalu kelola daftar VPS lewat menu Telegram:
-   - `📋 List VPS`
-   - `➕ Tambah VPS`
-   - `✏️ Edit VPS`
-   - `❌ Hapus VPS`
-   - `🔍 Test SSH` (per node / semua node)
-   - `⚡ Check Manual` untuk cek langsung tanpa tunggu report 3 jam
-   - saat tambah VPS, bot bisa minta password SSH untuk auto setup `ssh-copy-id`
+   - isi `BOT_TOKEN`, `CHAT_ID`, dan `REPORT_TIMEZONE`
+4. Jalankan bot, lalu kelola daftar VPS lewat menu Telegram.
 5. Pastikan SSH key dari VPS monitor sudah bisa login ke semua node tanpa password.
-6. Jalankan bot:
+6. Jalankan:
    - `python3 main.py`
-   - atau setup service otomatis: `bash scripts/install.sh` lalu pilih opsi `3`
+   - atau `bash scripts/install.sh` lalu pilih opsi `3`
 
-## Menjalankan dengan systemd (disarankan)
+## Menjalankan dengan systemd
 
-1. Pastikan dependency + `.env` sudah siap (paling gampang via `bash scripts/install.sh`)
-2. Install service:
-   - `sudo bash scripts/setup_systemd.sh`
-3. Cek status:
-   - `sudo systemctl status optimai-monitor`
-4. Cek log real-time:
-   - `sudo journalctl -u optimai-monitor -f`
-5. Restart manual jika perlu:
-   - `sudo systemctl restart optimai-monitor`
+```bash
+sudo bash scripts/setup_systemd.sh
+sudo systemctl status optimai-monitor
+sudo journalctl -u optimai-monitor -f
+```
 
-## Output bot
+## Menu Telegram
 
-- Alert saat node down: `⚠️ vpsX : ❌ DOWN`
-- Alert saat node hidup lagi: `✅ vpsX : RUNNING KEMBALI`
-- Report 3 jam:
-  - `🔥 OPTIMAI REPORT (3 JAM)`
-  - per node: `vpsX : ✅|❌ | +N`
-  - total: `💰 Total 3 Jam` dan `💰 Total All`
+- `📋 List VPS`
+- `➕ Tambah VPS`
+- `✏️ Edit VPS`
+- `❌ Hapus VPS`
+- `🔍 Test SSH`
+- `⚡ Check Manual`
+- `🔎 Detail VPS`
+- `🏆 Ranking Harian`
+- `📅 Riwayat Harian`
+- `📈 Riwayat Mingguan`
 
-## Catatan keamanan
+## Catatan data
 
-- Password SSH yang dikirim lewat Telegram dipakai sekali untuk setup key, lalu dibuang.
-- Tetap disarankan setelah setup selesai gunakan login SSH berbasis key, bukan password.
+- Task dihitung dari assignment ID unik yang ditemukan di journal OptimAI.
+- Gagal final berarti assignment memiliki event gagal dan belum pernah sukses submit.
+- Retry sukses berarti assignment sempat gagal tetapi akhirnya sukses submit.
+- Riwayat disimpan di `data/history.json`.
+- Saldo berasal dari satu node sumber karena semua node menggunakan akun OptimAI yang sama.
+
+## Keamanan
+
+Password SSH yang dikirim lewat Telegram hanya digunakan untuk setup SSH key. Tetap disarankan menggunakan login SSH berbasis key.
