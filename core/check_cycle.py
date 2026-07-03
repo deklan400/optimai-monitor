@@ -4,7 +4,9 @@ from zoneinfo import ZoneInfo
 
 from config import REPORT_TIMEZONE
 from core.alert import check_status_change
+from core.history import save_daily_snapshot
 from core.monitor import check_all_vps
+from core.ranking import generate_detail_report, generate_ranking_report
 from core.reporter import (
     generate_daily_report,
     generate_manual_report,
@@ -27,7 +29,6 @@ def current_local_date():
 
 
 def day_window_utc(target_date=None):
-    """Kembalikan batas awal/akhir satu hari lokal dalam format journalctl UTC."""
     if target_date is None:
         target_date = current_local_date()
 
@@ -45,10 +46,14 @@ def run_check_cycle(
     report_type="status",
     metrics_since=None,
     metrics_until=None,
+    snapshot_date=None,
 ):
     with _CHECK_LOCK:
-        needs_metrics = report_type in {"manual", "scheduled", "daily"}
-        needs_reward = report_type in {"baseline", "manual", "scheduled", "daily"}
+        metric_types = {"manual", "scheduled", "daily", "ranking", "detail"}
+        reward_types = {"baseline", "manual", "scheduled", "daily"}
+        needs_metrics = report_type in metric_types
+        needs_reward = report_type in reward_types
+        include_details = report_type == "detail"
 
         if needs_metrics and not metrics_since:
             metrics_since, _ = day_window_utc()
@@ -58,14 +63,20 @@ def run_check_cycle(
             include_reward=needs_reward,
             metrics_since=metrics_since if needs_metrics else None,
             metrics_until=metrics_until if needs_metrics else None,
+            include_details=include_details,
         )
 
         last_state = load_state()
         alerts, new_state = check_status_change(current_data, last_state)
         save_state(new_state)
 
+        current_total, source_node = get_account_reward(current_data)
+
+        if needs_metrics:
+            day_key = str(snapshot_date or current_local_date())
+            save_daily_snapshot(day_key, current_data, current_total, source_node)
+
         if report_type == "baseline":
-            current_total, source_node = get_account_reward(current_data)
             if current_total is not None:
                 save_reward_snapshot(current_total, source_node)
             report = None
@@ -76,12 +87,17 @@ def run_check_cycle(
         elif report_type == "scheduled":
             last_snapshot = load_reward_snapshot()
             report = generate_report(current_data, last_snapshot, report_title=report_title)
-            current_total, source_node = get_account_reward(current_data)
             if current_total is not None:
                 save_reward_snapshot(current_total, source_node)
 
         elif report_type == "daily":
             report = generate_daily_report(current_data, report_title=report_title)
+
+        elif report_type == "ranking":
+            report = generate_ranking_report(current_data)
+
+        elif report_type == "detail":
+            report = generate_detail_report(current_data[0]) if current_data else "VPS tidak ditemukan."
 
         else:
             report = None
