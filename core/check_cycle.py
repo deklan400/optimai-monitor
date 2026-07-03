@@ -15,14 +15,7 @@ _CHECK_LOCK = threading.Lock()
 
 def run_check_cycle(vps_dict, report_title="🔥 OPTIMAI REPORT (3 JAM)", report_type="status"):
     with _CHECK_LOCK:
-        needs_report_data = report_type in {"scheduled", "manual", "baseline"}
-        metrics_hours = 3 if report_type in {"scheduled", "manual"} else None
-
-        current_data = check_all_vps(
-            vps_dict,
-            include_reward=needs_report_data,
-            metrics_hours=metrics_hours,
-        )
+        current_data = check_all_vps(vps_dict)
 
         last_state = load_state()
         alerts, new_state = check_status_change(current_data, last_state)
