@@ -1,6 +1,11 @@
 import re
 
-from services.ssh_client import get_node_metrics, get_reward_raw, get_status
+from services.ssh_client import (
+    get_node_metrics,
+    get_node_system_detail,
+    get_reward_raw,
+    get_status,
+)
 from utils.parser import parse_reward
 
 
@@ -8,26 +13,33 @@ def _natural_key(value):
     return [int(part) if part.isdigit() else part.lower() for part in re.split(r"(\d+)", value)]
 
 
-def check_vps(name, host, metrics_since=None, metrics_until=None):
+def check_vps(
+    name,
+    host,
+    metrics_since=None,
+    metrics_until=None,
+    include_details=False,
+):
     data = {
         "name": name,
         "host": host,
         "status": "down",
         "reward": None,
         "metrics": None,
+        "system": None,
     }
 
-    status = get_status(host)
-    data["status"] = status
+    data["status"] = get_status(host)
 
-    # Journal masih bisa dibaca meski service sedang inactive, selama VPS dan
-    # SSH masih dapat diakses. Ini penting untuk laporan akhir harian.
     if metrics_since:
         data["metrics"] = get_node_metrics(
             host,
             since_utc=metrics_since,
             until_utc=metrics_until,
         )
+
+    if include_details:
+        data["system"] = get_node_system_detail(host)
 
     return data
 
@@ -37,6 +49,7 @@ def check_all_vps(
     include_reward=False,
     metrics_since=None,
     metrics_until=None,
+    include_details=False,
 ):
     results = []
 
@@ -49,6 +62,7 @@ def check_all_vps(
                 host,
                 metrics_since=metrics_since,
                 metrics_until=metrics_until,
+                include_details=include_details,
             )
         except Exception:
             result = {
@@ -57,12 +71,11 @@ def check_all_vps(
                 "status": "down",
                 "reward": None,
                 "metrics": None,
+                "system": None,
             }
 
         results.append(result)
 
-    # Semua node memakai akun OptimAI yang sama. Ambil saldo dari satu node
-    # running pertama saja agar saldo akun tidak dihitung berkali-kali.
     if include_reward:
         for item in results:
             if item["status"] != "running":
