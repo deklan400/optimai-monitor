@@ -26,6 +26,22 @@ MENU_SKIP_PASSWORD = "⏭️ Lewati Password"
 MENU_TEST_ALL = "🔍 Test Semua VPS"
 
 
+def _natural_key(value):
+    """Urutkan nama bernomor secara alami: 1, 2, 3, ..., 10."""
+    return [
+        int(part) if part.isdigit() else part.lower()
+        for part in re.split(r"(\d+)", value)
+    ]
+
+
+def _sorted_vps_names(vps_dict):
+    return sorted(vps_dict.keys(), key=_natural_key)
+
+
+def _sorted_vps_items(vps_dict):
+    return sorted(vps_dict.items(), key=lambda item: _natural_key(item[0]))
+
+
 def _main_keyboard():
     return [
         [{"text": MENU_LIST}, {"text": MENU_ADD}],
@@ -109,7 +125,7 @@ def _render_vps_list():
         return "Belum ada VPS terdaftar."
 
     lines = ["📋 Daftar VPS:"]
-    for name, host in sorted(vps_dict.items()):
+    for name, host in _sorted_vps_items(vps_dict):
         lines.append(f"- {name}: {host}")
     return "\n".join(lines)
 
@@ -147,7 +163,7 @@ def _start_delete_flow(chat_id):
         return
 
     USER_STATE[str(chat_id)] = {"step": "await_delete_name"}
-    rows = [[{"text": name}] for name in sorted(vps_dict.keys())]
+    rows = [[{"text": name}] for name in _sorted_vps_names(vps_dict)]
     rows.append([{"text": MENU_CANCEL}])
     _send_with_keyboard(chat_id, "Pilih nama VPS yang mau dihapus:", rows)
 
@@ -159,7 +175,7 @@ def _start_edit_flow(chat_id):
         return
 
     USER_STATE[str(chat_id)] = {"step": "await_edit_name"}
-    rows = [[{"text": name}] for name in sorted(vps_dict.keys())]
+    rows = [[{"text": name}] for name in _sorted_vps_names(vps_dict)]
     rows.append([{"text": MENU_CANCEL}])
     _send_with_keyboard(chat_id, "Pilih nama VPS yang mau diedit:", rows)
 
@@ -172,7 +188,7 @@ def _run_test_all(chat_id):
 
     _send_with_keyboard(chat_id, "⏳ Menjalankan test SSH semua VPS...", _main_keyboard())
     lines = ["🔍 HASIL TEST SSH (SEMUA VPS)\n"]
-    for name, host in sorted(vps_dict.items()):
+    for name, host in _sorted_vps_items(vps_dict):
         ok, detail = test_ssh_connection(host)
         if ok:
             lines.append(f"✅ {name} ({host}) : OK")
@@ -190,7 +206,7 @@ def _start_test_ssh_flow(chat_id):
 
     USER_STATE[str(chat_id)] = {"step": "await_test_name"}
     rows = [[{"text": MENU_TEST_ALL}]]
-    rows.extend([[{"text": name}] for name in sorted(vps_dict.keys())])
+    rows.extend([[{"text": name}] for name in _sorted_vps_names(vps_dict)])
     rows.append([{"text": MENU_CANCEL}])
     _send_with_keyboard(chat_id, "Pilih VPS untuk test SSH:", rows)
 
@@ -274,7 +290,7 @@ def _handle_stateful_message(chat_id, text):
         name = text.strip()
         vps_dict = load_vps()
         if name not in vps_dict:
-            _send_with_keyboard(chat_id, "Nama VPS tidak ditemukan. Pilih dari tombol.", [[{"text": n}] for n in sorted(vps_dict.keys())] + [[{"text": MENU_CANCEL}]])
+            _send_with_keyboard(chat_id, "Nama VPS tidak ditemukan. Pilih dari tombol.", [[{"text": n}] for n in _sorted_vps_names(vps_dict)] + [[{"text": MENU_CANCEL}]])
             return True
 
         USER_STATE[key] = {"step": "await_edit_host", "name": name}
@@ -316,7 +332,7 @@ def _handle_stateful_message(chat_id, text):
         vps_dict = load_vps()
         host = vps_dict.get(name)
         if not host:
-            _send_with_keyboard(chat_id, "Nama VPS tidak ditemukan. Pilih dari tombol.", [[{"text": MENU_TEST_ALL}]] + [[{"text": n}] for n in sorted(vps_dict.keys())] + [[{"text": MENU_CANCEL}]])
+            _send_with_keyboard(chat_id, "Nama VPS tidak ditemukan. Pilih dari tombol.", [[{"text": MENU_TEST_ALL}]] + [[{"text": n}] for n in _sorted_vps_names(vps_dict)] + [[{"text": MENU_CANCEL}]])
             return True
 
         USER_STATE.pop(key, None)
