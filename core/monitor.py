@@ -20,7 +20,9 @@ def check_vps(name, host, metrics_since=None, metrics_until=None):
     status = get_status(host)
     data["status"] = status
 
-    if status == "running" and metrics_since:
+    # Journal masih bisa dibaca meski service sedang inactive, selama VPS dan
+    # SSH masih dapat diakses. Ini penting untuk laporan akhir harian.
+    if metrics_since:
         data["metrics"] = get_node_metrics(
             host,
             since_utc=metrics_since,
