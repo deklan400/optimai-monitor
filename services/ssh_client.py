@@ -1,6 +1,8 @@
 import shlex
 import subprocess
 
+from utils.activity_parser import parse_assignment_activity
+
 
 def run_ssh(host, command, timeout=10):
     try:
@@ -65,85 +67,61 @@ def test_ssh_connection(host):
 
 def get_status(host):
     output = run_ssh(host, "systemctl is-active optimai")
-
     if not output:
         return "down"
-
     return "running" if output.strip() == "active" else "down"
 
 
 def get_reward_raw(host):
     output = run_ssh(host, "optimai-cli rewards balance", timeout=20)
-
-    if not output:
+    if not output or "error" in output.lower():
         return None
-
-    if "error" in output.lower():
-        return None
-
     return output
 
 
 def get_node_metrics(host, since_utc, until_utc=None):
-    """Hitung task, submit, dan gagal dari journal OptimAI pada rentang UTC."""
-    journal = (
-        "journalctl -u optimai "
-        f"--since {shlex.quote(since_utc)} "
-    )
+    """Hitung assignment unik dari journal OptimAI pada rentang UTC."""
+    journal = f"journalctl -u optimai --since {shlex.quote(since_utc)} "
     if until_utc:
         journal += f"--until {shlex.quote(until_utc)} "
-
     journal += "--no-pager -o cat 2>/dev/null"
 
-    awk_program = r'''awk '
-    {
-        original = $0
-        line = $0
+    command = f"{journal} | grep -Ei 'assignment|crawl|submit' || true"
+    output = run_ssh(host, command, timeout=45)
 
-        if (line ~ /fetched [0-9]+ actionable assignments/) {
-            sub(/^.*fetched /, "", line)
-            sub(/ actionable assignments.*$/, "", line)
-            tasks += line + 0
-        }
-
-        lower = tolower(original)
-
-        if (lower ~ /assignment .* submitted successfully/ ||
-            lower ~ /successfully submitted.*assignment/) {
-            submitted++
-        }
-
-        if ((lower ~ /assignment/ && lower ~ /(failed|rejected)/) ||
-            (lower ~ /submit/ && lower ~ /(failed|error)/) ||
-            (lower ~ /crawl/ && lower ~ /(failed|error)/)) {
-            failed++
-        }
-    }
-    END {
-        printf "%d|%d|%d\n", tasks + 0, submitted + 0, failed + 0
-    }' '''
-
-    output = run_ssh(host, f"{journal} | {awk_program}", timeout=45)
-    if not output:
+    if output is None:
         return {
             "available": False,
             "assignments": 0,
             "submitted": 0,
             "failed": 0,
+            "pending": 0,
+            "retried": 0,
         }
 
-    try:
-        tasks, submitted, failed = output.split("|")[-3:]
-        return {
-            "available": True,
-            "assignments": int(tasks),
-            "submitted": int(submitted),
-            "failed": int(failed),
-        }
-    except (TypeError, ValueError):
-        return {
-            "available": False,
-            "assignments": 0,
-            "submitted": 0,
-            "failed": 0,
-        }
+    return parse_assignment_activity(output)
+
+
+def get_node_system_detail(host):
+    """Ambil ringkasan sistem untuk menu Detail VPS."""
+    command = r'''
+STATUS=$(systemctl is-active optimai 2>/dev/null || true)
+ACTIVE=$(systemctl show optimai -p ActiveEnterTimestamp --value 2>/dev/null || true)
+MEM=$(free -m | awk '/^Mem:/ {printf "%s/%s MB", $3, $2}')
+DISK=$(df -P / | awk 'NR==2 {print $5}')
+DOCKER=$(systemctl is-active docker 2>/dev/null || true)
+HOSTNAME_VALUE=$(hostname)
+LAST_TASK=$(journalctl -u optimai --since "24 hours ago" --no-pager -o cat 2>/dev/null | grep -Ei 'assignment .* submitted successfully|fetched [1-9][0-9]* actionable assignments' | tail -1)
+printf 'hostname=%s\nstatus=%s\nactive_since=%s\nmemory=%s\ndisk=%s\ndocker=%s\nlast_task=%s\n' "$HOSTNAME_VALUE" "$STATUS" "$ACTIVE" "$MEM" "$DISK" "$DOCKER" "$LAST_TASK"
+'''
+    output = run_ssh(host, command, timeout=25)
+    if output is None:
+        return {"available": False}
+
+    detail = {"available": True}
+    for line in output.splitlines():
+        if "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        detail[key.strip()] = value.strip()
+    return detail
