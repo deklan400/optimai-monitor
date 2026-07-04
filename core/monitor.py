@@ -1,6 +1,7 @@
 import re
 
 from services.ssh_client import (
+    diagnose_down_reason,
     get_node_metrics,
     get_node_system_detail,
     get_reward_raw,
@@ -24,12 +25,15 @@ def check_vps(
         "name": name,
         "host": host,
         "status": "down",
+        "down_reason": None,
         "reward": None,
         "metrics": None,
         "system": None,
     }
 
     data["status"] = get_status(host)
+    if data["status"] != "running":
+        data["down_reason"] = diagnose_down_reason(host)
 
     if metrics_since:
         data["metrics"] = get_node_metrics(
@@ -64,11 +68,12 @@ def check_all_vps(
                 metrics_until=metrics_until,
                 include_details=include_details,
             )
-        except Exception:
+        except Exception as e:
             result = {
                 "name": name,
                 "host": host,
                 "status": "down",
+                "down_reason": f"Monitor gagal cek VPS: {str(e)[:250]}",
                 "reward": None,
                 "metrics": None,
                 "system": None,
