@@ -18,7 +18,6 @@ from core.reporter import get_account_reward
 from core.vps_store import add_vps, delete_vps, load_vps, save_vps
 from services.ssh_bootstrap import setup_ssh_key_with_password
 from services.ssh_client import run_ssh
-from services.telegram_bot import send_message
 
 load_dotenv()
 
@@ -170,10 +169,8 @@ def _setup_key_if_password(host, password):
 
 
 def _notify_telegram(text):
-    try:
-        send_message(text)
-    except Exception as exc:
-        print(f"[DASHBOARD TELEGRAM NOTIFY ERROR] {exc}")
+    """Dashboard action notifications are disabled; Telegram keeps only normal bot reports/alerts."""
+    return None
 
 
 def _success_rate(metrics):
@@ -316,7 +313,7 @@ def vps_list(opt_session: str | None = Cookie(default=None)):
 
 @app.post("/api/vps")
 def create_vps(payload: VpsPayload, opt_session: str | None = Cookie(default=None)):
-    telegram_id = _require_login(opt_session)
+    _require_login(opt_session)
     name = _validate_vps_name(payload.name)
     host = _validate_vps_host(payload.host)
     data = load_vps()
@@ -324,13 +321,13 @@ def create_vps(payload: VpsPayload, opt_session: str | None = Cookie(default=Non
         raise HTTPException(status_code=409, detail="Nama VPS sudah ada.")
     setup_result = _setup_key_if_password(host, payload.password)
     add_vps(name, host)
-    _notify_telegram(f"➕ VPS ditambahkan dari dashboard oleh {telegram_id}:\n- {name}: {host}")
+    _notify_telegram("dashboard vps created")
     return {"ok": True, "action": "created", "name": name, "host": host, **setup_result}
 
 
 @app.put("/api/vps/{old_name}")
 def edit_vps(old_name: str, payload: VpsPayload, opt_session: str | None = Cookie(default=None)):
-    telegram_id = _require_login(opt_session)
+    _require_login(opt_session)
     old_name = _validate_vps_name(old_name)
     new_name = _validate_vps_name(payload.name)
     host = _validate_vps_host(payload.host)
@@ -340,17 +337,16 @@ def edit_vps(old_name: str, payload: VpsPayload, opt_session: str | None = Cooki
     if new_name != old_name and new_name in data:
         raise HTTPException(status_code=409, detail="Nama VPS baru sudah dipakai.")
     setup_result = _setup_key_if_password(host, payload.password)
-    old_host = data.get(old_name)
     data.pop(old_name, None)
     data[new_name] = host
     save_vps(data)
-    _notify_telegram("✏️ VPS diedit dari dashboard oleh " f"{telegram_id}:\n" f"- Lama: {old_name}: {old_host}\n" f"- Baru: {new_name}: {host}")
+    _notify_telegram("dashboard vps updated")
     return {"ok": True, "action": "updated", "old_name": old_name, "name": new_name, "host": host, **setup_result}
 
 
 @app.delete("/api/vps/{name}")
 def remove_vps(name: str, opt_session: str | None = Cookie(default=None)):
-    telegram_id = _require_login(opt_session)
+    _require_login(opt_session)
     name = _validate_vps_name(name)
     data = load_vps()
     host = data.get(name)
@@ -358,7 +354,7 @@ def remove_vps(name: str, opt_session: str | None = Cookie(default=None)):
         raise HTTPException(status_code=404, detail="VPS tidak ditemukan.")
     if not delete_vps(name):
         raise HTTPException(status_code=404, detail="VPS tidak ditemukan.")
-    _notify_telegram(f"❌ VPS dihapus dari dashboard oleh {telegram_id}:\n- {name}: {host}")
+    _notify_telegram("dashboard vps deleted")
     return {"ok": True, "action": "deleted", "name": name, "host": host}
 
 
@@ -371,7 +367,9 @@ def node_detail(name: str, opt_session: str | None = Cookie(default=None)):
         raise HTTPException(status_code=404, detail="VPS not found")
     since_utc, _ = day_window_utc()
     current = check_all_vps({name: host}, include_reward=True, metrics_since=since_utc, include_details=True)
-    return _node_payload(current[0]) if current else HTTPException(status_code=404, detail="VPS not found")
+    if not current:
+        raise HTTPException(status_code=404, detail="VPS not found")
+    return _node_payload(current[0])
 
 
 @app.get("/api/vps/{name}/logs")
@@ -382,9 +380,9 @@ def node_logs(name: str, opt_session: str | None = Cookie(default=None)):
 
 @app.post("/api/vps/{name}/restart")
 def restart_node(name: str, opt_session: str | None = Cookie(default=None)):
-    telegram_id = _require_login(opt_session)
+    _require_login(opt_session)
     result = _run_node_command(name, NODE_COMMANDS["restart"], timeout=35)
-    _notify_telegram(f"🛠 Restart node dari dashboard oleh {telegram_id}:\n- {name}: {result['host']}")
+    _notify_telegram("dashboard restart")
     clean = result["output"].strip()
     result["status"] = "running" if clean == "active" else clean
     return result
@@ -392,13 +390,13 @@ def restart_node(name: str, opt_session: str | None = Cookie(default=None)):
 
 @app.post("/api/vps/{name}/action")
 def node_action(name: str, payload: ActionPayload, opt_session: str | None = Cookie(default=None)):
-    telegram_id = _require_login(opt_session)
+    _require_login(opt_session)
     action = payload.action.strip()
     command = NODE_COMMANDS.get(action)
     if not command:
         raise HTTPException(status_code=400, detail="Action tidak dikenali.")
     result = _run_node_command(name, command, timeout=45)
-    _notify_telegram(f"⚙️ Action {action} dari dashboard oleh {telegram_id}:\n- {name}: {result['host']}")
+    _notify_telegram("dashboard node action")
     result["action"] = action
     return result
 
@@ -417,7 +415,7 @@ def mini_command(name: str, payload: MiniCommandPayload, opt_session: str | None
 
 @app.post("/api/global-action")
 def global_action(payload: GlobalActionPayload, opt_session: str | None = Cookie(default=None)):
-    telegram_id = _require_login(opt_session)
+    _require_login(opt_session)
     action = payload.action.strip()
     command_map = {
         "status_all": NODE_COMMANDS["status"],
@@ -432,7 +430,7 @@ def global_action(payload: GlobalActionPayload, opt_session: str | None = Cookie
     for name, host in sorted(load_vps().items(), key=lambda item: _natural_key(item[0])):
         output = run_ssh(host, command, timeout=45)
         results.append({"name": name, "host": host, "ok": output is not None, "output": output or ""})
-    _notify_telegram(f"🌐 Global command {action} dijalankan dari dashboard oleh {telegram_id}. Total VPS: {len(results)}")
+    _notify_telegram("dashboard global action")
     return {"action": action, "results": results}
 
 
