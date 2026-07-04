@@ -7,209 +7,141 @@
   <style>
     :root {
       --bg: #090d16;
-      --panel: #111827;
-      --panel-2: #162032;
-      --text: #e5eefb;
-      --muted: #94a3b8;
+      --shell: #0d1425;
+      --panel: #121b2d;
+      --panel2: #172238;
+      --text: #eaf2ff;
+      --muted: #96a8c4;
       --line: rgba(148, 163, 184, .18);
+      --blue: #38bdf8;
       --green: #22c55e;
       --red: #ef4444;
-      --yellow: #f59e0b;
-      --blue: #38bdf8;
-      --purple: #a78bfa;
     }
 
     * { box-sizing: border-box; }
+    html, body { width: 100%; min-height: 100%; overflow-x: hidden; }
     body {
       margin: 0;
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       color: var(--text);
-      background: radial-gradient(circle at top left, #172554 0, transparent 35%), var(--bg);
+      background: radial-gradient(circle at top left, #172554 0, transparent 32%), var(--bg);
     }
 
-    .app { display: flex; min-height: 100vh; }
+    .app { min-height: 100vh; display: grid; grid-template-columns: 260px minmax(0, 1fr); }
     .sidebar {
-      width: 260px;
-      padding: 22px 16px;
-      border-right: 1px solid var(--line);
-      background: rgba(15, 23, 42, .88);
       position: sticky;
       top: 0;
       height: 100vh;
+      padding: 20px 14px;
+      background: rgba(13, 20, 37, .94);
+      border-right: 1px solid var(--line);
+      z-index: 10;
     }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 28px;
-      padding: 10px;
-    }
+    .brand { display: flex; align-items: center; gap: 12px; padding: 10px; margin-bottom: 22px; }
     .logo {
-      width: 42px;
-      height: 42px;
-      border-radius: 14px;
-      display: grid;
-      place-items: center;
-      background: linear-gradient(135deg, #38bdf8, #8b5cf6);
-      color: white;
-      font-weight: 800;
+      width: 42px; height: 42px; border-radius: 14px; display: grid; place-items: center;
+      background: linear-gradient(135deg, #38bdf8, #8b5cf6); font-weight: 900; color: #fff;
+      flex: 0 0 auto;
     }
-    .brand h1 { font-size: 17px; margin: 0; }
-    .brand p { font-size: 12px; color: var(--muted); margin: 2px 0 0; }
-
+    .brand h1 { margin: 0; font-size: 17px; line-height: 1.1; }
+    .brand p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
+    .nav { display: grid; gap: 6px; }
     .nav button {
-      width: 100%;
-      border: 0;
-      color: var(--muted);
-      background: transparent;
-      border-radius: 12px;
-      padding: 12px 13px;
-      margin-bottom: 6px;
-      text-align: left;
-      font-weight: 700;
-      cursor: pointer;
+      width: 100%; border: 0; color: var(--muted); background: transparent; border-radius: 12px;
+      padding: 12px 13px; text-align: left; font-weight: 800; cursor: pointer; white-space: nowrap;
     }
-    .nav button:hover, .nav button.active {
-      color: var(--text);
-      background: rgba(56, 189, 248, .12);
-    }
+    .nav button:hover, .nav button.active { color: var(--text); background: rgba(56, 189, 248, .14); }
 
-    .main { flex: 1; padding: 24px; max-width: 1600px; margin: 0 auto; width: 100%; }
+    .main { min-width: 0; width: 100%; padding: 24px; max-width: 1600px; margin: 0 auto; }
     .topbar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 16px;
-      margin-bottom: 24px;
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 22px;
     }
-    .topbar h2 { margin: 0; font-size: 26px; }
-    .topbar p { margin: 6px 0 0; color: var(--muted); }
-
-    .actions { display: flex; gap: 10px; align-items: center; }
+    .topbar h2 { margin: 0; font-size: clamp(22px, 3vw, 30px); }
+    .topbar p { margin: 6px 0 0; color: var(--muted); overflow-wrap: anywhere; }
+    .actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
     .token-input {
-      width: 190px;
-      background: rgba(15, 23, 42, .9);
-      color: var(--text);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 11px 12px;
-      outline: none;
+      width: 210px; max-width: 100%; background: rgba(15, 23, 42, .92); color: var(--text);
+      border: 1px solid var(--line); border-radius: 12px; padding: 11px 12px; outline: none;
     }
     .btn {
-      border: 0;
-      border-radius: 12px;
-      padding: 11px 14px;
-      color: white;
-      background: #2563eb;
-      cursor: pointer;
-      font-weight: 800;
+      border: 0; border-radius: 12px; padding: 11px 14px; color: white; background: #2563eb;
+      cursor: pointer; font-weight: 900; white-space: nowrap;
     }
     .btn:hover { filter: brightness(1.08); }
     .btn.secondary { background: #334155; }
     .btn.danger { background: #dc2626; }
     .btn.small { padding: 8px 10px; font-size: 12px; }
 
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(6, minmax(140px, 1fr));
-      gap: 14px;
-      margin-bottom: 22px;
-    }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 20px; }
     .stat, .card, .panel {
-      background: linear-gradient(180deg, rgba(30, 41, 59, .92), rgba(15, 23, 42, .94));
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      box-shadow: 0 18px 50px rgba(0, 0, 0, .20);
+      background: linear-gradient(180deg, rgba(30, 41, 59, .94), rgba(15, 23, 42, .96));
+      border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 16px 42px rgba(0, 0, 0, .20);
     }
-    .stat { padding: 16px; }
-    .stat .label { color: var(--muted); font-size: 12px; font-weight: 700; }
-    .stat .value { font-size: 28px; font-weight: 900; margin-top: 8px; }
+    .stat { padding: 15px; min-height: 96px; }
+    .stat .label { color: var(--muted); font-size: 12px; font-weight: 800; }
+    .stat .value { font-size: clamp(24px, 5vw, 32px); font-weight: 950; margin-top: 8px; }
 
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(285px, 1fr));
-      gap: 16px;
-    }
-    .card { padding: 16px; }
-    .card-head { display: flex; justify-content: space-between; gap: 10px; align-items: start; margin-bottom: 14px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(285px, 1fr)); gap: 16px; }
+    .card { padding: 16px; min-width: 0; }
+    .card-head { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; margin-bottom: 14px; }
     .card h3 { margin: 0; font-size: 18px; }
     .host { color: var(--muted); font-size: 12px; margin-top: 4px; word-break: break-all; }
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      border-radius: 999px;
-      padding: 6px 10px;
-      font-size: 12px;
-      font-weight: 900;
-    }
+    .badge { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 6px 10px; font-size: 12px; font-weight: 950; white-space: nowrap; }
     .badge.running { background: rgba(34, 197, 94, .14); color: #86efac; }
     .badge.down { background: rgba(239, 68, 68, .14); color: #fecaca; }
-
-    .metrics {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 10px;
-      margin-bottom: 14px;
-    }
-    .metric {
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 10px;
-      background: rgba(15, 23, 42, .55);
-    }
-    .metric span { display: block; color: var(--muted); font-size: 11px; font-weight: 800; }
+    .metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+    .metric { border: 1px solid var(--line); border-radius: 12px; padding: 10px; background: rgba(15, 23, 42, .56); min-width: 0; }
+    .metric span { display: block; color: var(--muted); font-size: 11px; font-weight: 850; }
     .metric b { display: block; font-size: 20px; margin-top: 3px; }
     .card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-
     .panel { padding: 18px; margin-bottom: 18px; overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; }
+    table { width: 100%; border-collapse: collapse; min-width: 620px; }
     th, td { padding: 12px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
     th { color: var(--muted); font-size: 12px; text-transform: uppercase; }
-    .hidden { display: none; }
+    .hidden { display: none !important; }
     .muted { color: var(--muted); }
-    .green { color: var(--green); }
-    .red { color: var(--red); }
-    .yellow { color: var(--yellow); }
-    .blue { color: var(--blue); }
 
-    .modal {
-      position: fixed;
-      inset: 0;
-      background: rgba(2, 6, 23, .76);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      padding: 24px;
-      z-index: 99;
-    }
+    .modal { position: fixed; inset: 0; background: rgba(2, 6, 23, .78); display: none; align-items: center; justify-content: center; padding: 18px; z-index: 99; }
     .modal.show { display: flex; }
-    .modal-box {
-      width: min(860px, 100%);
-      max-height: 85vh;
-      overflow: auto;
-      background: #0f172a;
-      border: 1px solid var(--line);
-      border-radius: 20px;
-      padding: 20px;
-    }
-    pre {
-      background: #020617;
-      padding: 14px;
-      border-radius: 14px;
-      overflow: auto;
-      color: #dbeafe;
-      border: 1px solid var(--line);
-      white-space: pre-wrap;
+    .modal-box { width: min(860px, 100%); max-height: 86vh; overflow: auto; background: #0f172a; border: 1px solid var(--line); border-radius: 20px; padding: 20px; }
+    pre { background: #020617; padding: 14px; border-radius: 14px; overflow: auto; color: #dbeafe; border: 1px solid var(--line); white-space: pre-wrap; }
+
+    @media (max-width: 1050px) {
+      .app { display: block; }
+      .sidebar {
+        position: sticky; top: 0; height: auto; width: 100%; padding: 10px 12px 12px;
+        border-right: 0; border-bottom: 1px solid var(--line); backdrop-filter: blur(14px);
+      }
+      .brand { margin: 0 0 8px; padding: 4px 6px; }
+      .logo { width: 36px; height: 36px; border-radius: 12px; }
+      .brand h1 { font-size: 16px; }
+      .brand p { display: none; }
+      .nav { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin; }
+      .nav button { width: auto; flex: 0 0 auto; padding: 10px 12px; text-align: center; margin: 0; background: rgba(15, 23, 42, .55); }
+      .main { padding: 18px 14px 28px; }
+      .topbar { align-items: stretch; }
     }
 
-    @media (max-width: 900px) {
-      .app { display: block; }
-      .sidebar { width: auto; height: auto; position: relative; }
-      .stats { grid-template-columns: repeat(2, 1fr); }
-      .topbar { display: block; }
-      .actions { margin-top: 14px; flex-wrap: wrap; }
+    @media (max-width: 720px) {
+      .topbar { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 16px; }
+      .actions { justify-content: stretch; }
+      .token-input { flex: 1 1 180px; width: auto; min-width: 0; }
+      .actions .btn { flex: 0 0 auto; }
+      .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+      .stat { min-height: 86px; padding: 13px; }
+      .grid { grid-template-columns: 1fr; gap: 12px; }
+      .card { padding: 14px; }
+      .panel { padding: 14px; border-radius: 16px; }
+    }
+
+    @media (max-width: 430px) {
+      .main { padding: 14px 10px 24px; }
+      .stats { grid-template-columns: 1fr; }
+      .metrics { grid-template-columns: 1fr; }
+      .card-head { display: grid; gap: 8px; }
+      .btn.small { flex: 1 1 90px; }
+      .modal { padding: 10px; }
+      .modal-box { padding: 14px; border-radius: 16px; }
     }
   </style>
 </head>
@@ -218,10 +150,7 @@
     <aside class="sidebar">
       <div class="brand">
         <div class="logo">O</div>
-        <div>
-          <h1>OptimAI Control</h1>
-          <p>Node dashboard</p>
-        </div>
+        <div><h1>OptimAI Control</h1><p>Node dashboard</p></div>
       </div>
       <div class="nav">
         <button class="active" data-page="overview">🏠 Overview</button>
@@ -234,10 +163,7 @@
 
     <main class="main">
       <div class="topbar">
-        <div>
-          <h2 id="page-title">Overview</h2>
-          <p id="sub-title">Loading data...</p>
-        </div>
+        <div><h2 id="page-title">Overview</h2><p id="sub-title">Loading data...</p></div>
         <div class="actions">
           <input id="token" class="token-input" type="password" placeholder="Dashboard token" />
           <button class="btn secondary" onclick="loadAll()">Refresh</button>
@@ -255,10 +181,7 @@
   <div id="modal" class="modal" onclick="closeModal(event)">
     <div class="modal-box" onclick="event.stopPropagation()">
       <div class="topbar">
-        <div>
-          <h2 id="modal-title">Detail</h2>
-          <p id="modal-sub" class="muted"></p>
-        </div>
+        <div><h2 id="modal-title">Detail</h2><p id="modal-sub" class="muted"></p></div>
         <button class="btn secondary" onclick="hideModal()">Close</button>
       </div>
       <div id="modal-content"></div>
@@ -273,9 +196,7 @@
     const metric = (node, key) => Number((node.metrics || {})[key] || 0);
     const token = () => document.getElementById('token').value || localStorage.getItem('dashboardToken') || '';
 
-    document.getElementById('token').addEventListener('change', (e) => {
-      localStorage.setItem('dashboardToken', e.target.value);
-    });
+    document.getElementById('token').addEventListener('change', (e) => localStorage.setItem('dashboardToken', e.target.value));
     document.getElementById('token').value = localStorage.getItem('dashboardToken') || '';
 
     document.querySelectorAll('.nav button').forEach(btn => {
@@ -316,11 +237,7 @@
     function renderAll() {
       if (!state) return;
       document.getElementById('sub-title').textContent = `Last update: ${state.generated_at} | Date: ${state.date}`;
-      renderOverview();
-      renderNodes();
-      renderRanking();
-      renderDaily();
-      renderWeekly();
+      renderOverview(); renderNodes(); renderRanking(); renderDaily(); renderWeekly();
     }
 
     function statsHtml() {
@@ -361,9 +278,7 @@
       document.getElementById('overview').innerHTML = `${statsHtml()}<div class="panel"><h3>🏆 Top 5 Hari Ini</h3><table><thead><tr><th>#</th><th>Node</th><th>Submit</th><th>Task</th><th>Success</th></tr></thead><tbody>${top}</tbody></table></div><div class="grid">${state.nodes.map(nodeCard).join('')}</div>`;
     }
 
-    function renderNodes() {
-      document.getElementById('nodes').innerHTML = `<div class="grid">${state.nodes.map(nodeCard).join('')}</div>`;
-    }
+    function renderNodes() { document.getElementById('nodes').innerHTML = `<div class="grid">${state.nodes.map(nodeCard).join('')}</div>`; }
 
     function renderRanking() {
       const rows = [...state.nodes].sort((a,b) => metric(b, 'submitted') - metric(a, 'submitted')).map((n, i) => `<tr><td>${i + 1}</td><td>${n.name}</td><td>${n.status}</td><td>${metric(n, 'submitted')}</td><td>${metric(n, 'assignments')}</td><td>${metric(n, 'failed')}</td><td>${n.success_rate || 0}%</td></tr>`).join('');
@@ -382,7 +297,7 @@
       const data = await api('/api/history/weekly');
       const t = data.totals || {};
       const rows = Object.entries(data.nodes || {}).sort((a,b) => (b[1].submitted || 0) - (a[1].submitted || 0)).map(([name, m], i) => `<tr><td>${i + 1}</td><td>${name}</td><td>${m.assignments || 0}</td><td>${m.submitted || 0}</td><td>${m.failed || 0}</td><td>${m.pending || 0}</td></tr>`).join('');
-      document.getElementById('weekly').innerHTML = `${statsHtml().replace('Total Akun', 'Data Hari')}<div class="panel"><h3>7 Hari: Task ${t.assignments || 0} | Submit ${t.submitted || 0} | Gagal ${t.failed || 0}</h3><table><thead><tr><th>#</th><th>Node</th><th>Task</th><th>Submit</th><th>Gagal</th><th>Pending</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+      document.getElementById('weekly').innerHTML = `<div class="panel"><h3>7 Hari: Task ${t.assignments || 0} | Submit ${t.submitted || 0} | Gagal ${t.failed || 0}</h3><table><thead><tr><th>#</th><th>Node</th><th>Task</th><th>Submit</th><th>Gagal</th><th>Pending</th></tr></thead><tbody>${rows}</tbody></table></div>`;
     }
 
     async function detail(name) {
@@ -414,12 +329,7 @@
       }
     }
 
-    function showModal(title, sub) {
-      document.getElementById('modal-title').textContent = title;
-      document.getElementById('modal-sub').textContent = sub || '';
-      document.getElementById('modal-content').innerHTML = '';
-      document.getElementById('modal').classList.add('show');
-    }
+    function showModal(title, sub) { document.getElementById('modal-title').textContent = title; document.getElementById('modal-sub').textContent = sub || ''; document.getElementById('modal-content').innerHTML = ''; document.getElementById('modal').classList.add('show'); }
     function hideModal() { document.getElementById('modal').classList.remove('show'); }
     function closeModal(e) { if (e.target.id === 'modal') hideModal(); }
     function escapeHtml(text) { return String(text).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
