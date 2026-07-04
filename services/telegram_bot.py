@@ -21,6 +21,7 @@ load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 ADMIN_CHAT_ID = str(CHAT_ID) if CHAT_ID else None
+DASHBOARD_URL = os.getenv("DASHBOARD_URL", "").strip()
 USER_STATE = {}
 
 MENU_LIST = "📋 List VPS"
@@ -33,6 +34,7 @@ MENU_DETAIL = "🔎 Detail VPS"
 MENU_RANKING = "🏆 Ranking Harian"
 MENU_HISTORY_DAILY = "📅 Riwayat Harian"
 MENU_HISTORY_WEEKLY = "📈 Riwayat Mingguan"
+MENU_WEBSITE = "🌐 Website"
 MENU_CANCEL = "🔙 Batal"
 MENU_SKIP_PASSWORD = "⏭️ Lewati Password"
 MENU_TEST_ALL = "🔍 Test Semua VPS"
@@ -60,6 +62,7 @@ def _main_keyboard():
         [{"text": MENU_TEST_SSH}, {"text": MENU_CHECK_NOW}],
         [{"text": MENU_DETAIL}, {"text": MENU_RANKING}],
         [{"text": MENU_HISTORY_DAILY}, {"text": MENU_HISTORY_WEEKLY}],
+        [{"text": MENU_WEBSITE}],
     ]
 
 
@@ -167,6 +170,26 @@ def _run_daily_history(chat_id):
 
 def _run_weekly_history(chat_id):
     _send_with_keyboard(chat_id, build_weekly_history_report(), _main_keyboard())
+
+
+def _send_website_link(chat_id):
+    if not DASHBOARD_URL:
+        _send_with_keyboard(
+            chat_id,
+            "🌐 DASHBOARD WEBSITE\n\nDASHBOARD_URL belum diset di file .env VPS monitor.",
+            _main_keyboard(),
+        )
+        return
+
+    _send_with_keyboard(
+        chat_id,
+        (
+            "🌐 OPTIMAI DASHBOARD\n\n"
+            f"Link: {DASHBOARD_URL}\n\n"
+            f"Login pakai ID Telegram kamu:\n{chat_id}"
+        ),
+        _main_keyboard(),
+    )
 
 
 def _start_detail_flow(chat_id):
@@ -404,6 +427,8 @@ def _handle_menu(chat_id, text):
         _run_daily_history(chat_id)
     elif text == MENU_HISTORY_WEEKLY:
         _run_weekly_history(chat_id)
+    elif text == MENU_WEBSITE:
+        _send_website_link(chat_id)
     else:
         _send_with_keyboard(chat_id, "Menu tidak dikenali. Pilih tombol yang tersedia.", _main_keyboard())
 
