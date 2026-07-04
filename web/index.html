@@ -51,9 +51,11 @@
 
     .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; margin-bottom:20px; }
     .stat,.card,.panel { background:linear-gradient(180deg,rgba(30,41,59,.94),rgba(15,23,42,.96)); border:1px solid var(--line); border-radius:18px; box-shadow:0 16px 42px rgba(0,0,0,.20); }
-    .stat { padding:15px; min-height:96px; }
+    .stat { padding:15px; min-height:96px; min-width:0; overflow:hidden; }
     .stat .label { color:var(--muted); font-size:12px; font-weight:800; }
-    .stat .value { font-size:clamp(24px,5vw,32px); font-weight:950; margin-top:8px; }
+    .stat .value { font-size:clamp(24px,3.2vw,32px); font-weight:950; margin-top:8px; line-height:1.05; letter-spacing:-.035em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .stat.long .value { font-size:clamp(19px,2.05vw,25px); letter-spacing:-.045em; }
+    .stat.xlong .value { font-size:clamp(16px,1.65vw,21px); letter-spacing:-.055em; }
     .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(285px,1fr)); gap:16px; }
     .card { padding:16px; min-width:0; }
     .card-head { display:flex; justify-content:space-between; gap:10px; align-items:flex-start; margin-bottom:14px; }
@@ -116,7 +118,7 @@
   <div id="modal" class="modal" onclick="closeModal(event)"><div class="modal-box" onclick="event.stopPropagation()"><div class="topbar"><div><h2 id="modal-title">Detail</h2><p id="modal-sub" class="muted"></p></div><button class="btn secondary" onclick="hideModal()">Close</button></div><div id="modal-content"></div></div></div>
   <script>
     let state = null; let currentPage = 'overview';
-    const rup = (v) => v === null || v === undefined ? '-' : Number(v).toLocaleString('en-US');
+    const rup = (v) => { if (v === null || v === undefined) return '-'; const n = Number(v); if (Number.isNaN(n)) return String(v); return n.toLocaleString('en-US', { maximumFractionDigits: 0 }); };
     const metric = (node, key) => Number((node.metrics || {})[key] || 0);
     const token = () => document.getElementById('token').value || localStorage.getItem('dashboardToken') || '';
 
@@ -132,7 +134,7 @@
     async function loadAll() { document.getElementById('sub-title').textContent = 'Refreshing data from all VPS...'; try { state = await api('/api/overview'); renderAll(); } catch (err) { document.getElementById('sub-title').textContent = 'Error: ' + err.message; } }
     function showPage(page) { currentPage = page; document.querySelectorAll('.page').forEach(el => el.classList.add('hidden')); document.getElementById(page).classList.remove('hidden'); const titles = { overview:'Overview', nodes:'VPS Nodes', ranking:'Ranking Harian', daily:'Daily Report', weekly:'Weekly Report' }; document.getElementById('page-title').textContent = titles[page]; renderAll(); }
     function renderAll() { if (!state) return; document.getElementById('sub-title').textContent = `Last update: ${state.generated_at} | Date: ${state.date}`; renderOverview(); renderNodes(); renderRanking(); renderDaily(); renderWeekly(); }
-    function statsHtml() { const t = state.totals || {}; const stats = [['Total VPS',state.total_vps],['Running',state.running],['Down',state.down],['Task Unik',t.assignments],['Submit',t.submitted],['Gagal Final',t.failed],['Pending',t.pending],['Retry',t.retried],['Total Akun',state.account_total]]; return `<div class="stats">${stats.map(([label,value]) => `<div class="stat"><div class="label">${label}</div><div class="value">${rup(value)}</div></div>`).join('')}</div>`; }
+    function statsHtml() { const t = state.totals || {}; const stats = [['Total VPS',state.total_vps],['Running',state.running],['Down',state.down],['Task Unik',t.assignments],['Submit',t.submitted],['Gagal Final',t.failed],['Pending',t.pending],['Retry',t.retried],['Total Akun',state.account_total]]; return `<div class="stats">${stats.map(([label,value]) => { const text = rup(value); const len = String(text).length; const cls = len > 11 ? ' xlong' : len > 7 ? ' long' : ''; return `<div class="stat${cls}" title="${text}"><div class="label">${label}</div><div class="value">${text}</div></div>`; }).join('')}</div>`; }
     function nodeCard(node) { const status = node.status === 'running' ? 'running' : 'down'; return `<div class="card"><div class="card-head"><div><h3>${node.name}</h3><div class="host">${node.host || '-'}</div></div><span class="badge ${status}">${status === 'running' ? '✅ Running' : '❌ Down'}</span></div><div class="metrics"><div class="metric"><span>Task</span><b>${metric(node,'assignments')}</b></div><div class="metric"><span>Submit</span><b>${metric(node,'submitted')}</b></div><div class="metric"><span>Gagal</span><b>${metric(node,'failed')}</b></div><div class="metric"><span>Pending</span><b>${metric(node,'pending')}</b></div><div class="metric"><span>Retry</span><b>${metric(node,'retried')}</b></div><div class="metric"><span>Success</span><b>${node.success_rate || 0}%</b></div></div><div class="card-actions"><button class="btn small secondary" onclick="detail('${node.name}')">Detail</button><button class="btn small danger" onclick="restartNode('${node.name}')">Restart</button><button class="btn small secondary" onclick="logs('${node.name}')">Logs</button></div></div>`; }
     function renderOverview() { const top = (state.top_nodes || []).map((n,i) => `<tr><td>${i+1}</td><td>${n.name}</td><td>${metric(n,'submitted')}</td><td>${metric(n,'assignments')}</td><td>${n.success_rate || 0}%</td></tr>`).join(''); document.getElementById('overview').innerHTML = `${statsHtml()}<div class="panel"><h3>🏆 Top 5 Hari Ini</h3><table><thead><tr><th>#</th><th>Node</th><th>Submit</th><th>Task</th><th>Success</th></tr></thead><tbody>${top}</tbody></table></div><div class="grid">${state.nodes.map(nodeCard).join('')}</div>`; }
     function renderNodes() { document.getElementById('nodes').innerHTML = `<div class="grid">${state.nodes.map(nodeCard).join('')}</div>`; }
