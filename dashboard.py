@@ -157,7 +157,8 @@ def restart_node(name: str, x_dashboard_token: str | None = Header(default=None)
     output = run_ssh(host, command, timeout=35)
     if not output:
         raise HTTPException(status_code=500, detail="Restart command failed")
-    return {"name": name, "status": "running" if "active" in output else output.strip(), "raw": output}
+    clean = output.strip()
+    return {"name": name, "status": "running" if clean == "active" else clean, "raw": output}
 
 
 @app.get("/api/history/daily")
