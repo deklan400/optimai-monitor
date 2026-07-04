@@ -43,6 +43,25 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 WEB_DIR = os.path.join(BASE_DIR, "web")
 VPS_NAME_RE = re.compile(r"^[a-zA-Z0-9_-]{1,32}$")
 
+NODE_COMMANDS = {
+    "restart": "systemctl restart optimai && sleep 2 && systemctl is-active optimai",
+    "start": "systemctl start optimai && sleep 2 && systemctl is-active optimai",
+    "stop": "systemctl stop optimai && sleep 1 && systemctl is-active optimai || true",
+    "status": "systemctl status optimai --no-pager -l | tail -n 80",
+    "reward": "optimai-cli rewards balance",
+}
+
+MINI_COMMANDS = {
+    "status": "systemctl status optimai --no-pager -l | tail -n 80",
+    "reward": "optimai-cli rewards balance",
+    "ram": "free -h",
+    "disk": "df -h /",
+    "docker": "docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' | head -n 60",
+    "logs": "journalctl -u optimai -n 100 --no-pager -o short-iso 2>/dev/null || true",
+    "errors": "journalctl -u optimai --since '6 hours ago' --no-pager -o short-iso 2>/dev/null | grep -Ei 'error|failed|rejected|timeout' | tail -n 120 || true",
+    "version": "optimai-cli --version 2>/dev/null || which optimai-cli || true",
+}
+
 app = FastAPI(title="OptimAI Control Dashboard")
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
 
@@ -55,6 +74,22 @@ class VpsPayload(BaseModel):
     name: str
     host: str
     password: str | None = None
+
+
+class ActionPayload(BaseModel):
+    action: str
+
+
+class MiniCommandPayload(BaseModel):
+    command: str
+
+
+class GlobalActionPayload(BaseModel):
+    action: str
+
+
+def _natural_key(value):
+    return [int(part) if part.isdigit() else part.lower() for part in re.split(r"(\d+)", value or "")]
 
 
 def _sign_session(telegram_id: str, timestamp: int) -> str:
@@ -70,35 +105,21 @@ def _make_session(telegram_id: str) -> str:
 def _parse_session(session_value: str | None):
     if not session_value:
         return None
-
     try:
         telegram_id, raw_timestamp, signature = session_value.split(":", 2)
         timestamp = int(raw_timestamp)
     except (ValueError, TypeError):
         return None
-
     if int(time.time()) - timestamp > SESSION_TTL:
         return None
-
-    expected = _sign_session(telegram_id, timestamp)
-    if not hmac.compare_digest(signature, expected):
+    if not hmac.compare_digest(signature, _sign_session(telegram_id, timestamp)):
         return None
-
-    if telegram_id not in ALLOWED_TELEGRAM_IDS:
-        return None
-
-    return telegram_id
+    return telegram_id if telegram_id in ALLOWED_TELEGRAM_IDS else None
 
 
 def _set_session_cookies(response: Response, session_value: str):
     for cookie_name in (SESSION_COOKIE, LEGACY_SESSION_COOKIE):
-        response.set_cookie(
-            key=cookie_name,
-            value=session_value,
-            httponly=True,
-            samesite="lax",
-            max_age=SESSION_TTL,
-        )
+        response.set_cookie(cookie_name, session_value, httponly=True, samesite="lax", max_age=SESSION_TTL)
 
 
 def _delete_session_cookies(response: Response):
@@ -124,10 +145,7 @@ def _page_is_logged_in(request: Request) -> bool:
 def _validate_vps_name(name):
     clean = (name or "").strip()
     if not VPS_NAME_RE.fullmatch(clean):
-        raise HTTPException(
-            status_code=400,
-            detail="Nama VPS hanya boleh huruf, angka, underscore, dan strip. Maksimal 32 karakter.",
-        )
+        raise HTTPException(status_code=400, detail="Nama VPS hanya boleh huruf, angka, underscore, dan strip. Maksimal 32 karakter.")
     return clean
 
 
@@ -145,7 +163,6 @@ def _setup_key_if_password(host, password):
     password = (password or "").strip()
     if not password:
         return {"ssh_key_setup": "skipped", "message": "Password kosong, setup SSH key dilewati."}
-
     ok, detail = setup_ssh_key_with_password(host, password)
     if not ok:
         raise HTTPException(status_code=500, detail=f"Setup SSH key gagal: {detail}")
@@ -160,10 +177,8 @@ def _notify_telegram(text):
 
 
 def _success_rate(metrics):
-    if not metrics:
-        return 0.0
-    task = int(metrics.get("assignments", 0) or 0)
-    submit = int(metrics.get("submitted", 0) or 0)
+    task = int((metrics or {}).get("assignments", 0) or 0)
+    submit = int((metrics or {}).get("submitted", 0) or 0)
     return round((submit / task) * 100, 1) if task else 0.0
 
 
@@ -178,17 +193,36 @@ def _metrics_total(nodes):
     return totals
 
 
+def _stale_payload(status, system):
+    try:
+        age = int((system or {}).get("last_task_age_seconds", -1))
+    except (TypeError, ValueError):
+        age = -1
+
+    if status != "running":
+        return {"level": "down", "label": "Down", "age_seconds": age}
+    if age < 0:
+        return {"level": "unknown", "label": "No task 24h", "age_seconds": age}
+    if age >= 21600:
+        return {"level": "danger", "label": "Stale 6h+", "age_seconds": age}
+    if age >= 10800:
+        return {"level": "warning", "label": "No task 3h+", "age_seconds": age}
+    return {"level": "healthy", "label": "Live", "age_seconds": age}
+
+
 def _node_payload(item):
     metrics = item.get("metrics") or {}
     system = item.get("system") or {}
+    status = item.get("status")
     return {
         "name": item.get("name"),
         "host": item.get("host"),
-        "status": item.get("status"),
+        "status": status,
         "reward": item.get("reward"),
         "metrics": metrics,
         "system": system,
         "success_rate": _success_rate(metrics),
+        "stale": _stale_payload(status, system),
     }
 
 
@@ -203,12 +237,20 @@ def _load_current(include_details=False):
     return vps_dict, current, nodes, totals, account_total, source_node
 
 
+def _run_node_command(name, command, timeout=35):
+    vps_dict = load_vps()
+    host = vps_dict.get(name)
+    if not host:
+        raise HTTPException(status_code=404, detail="VPS not found")
+    output = run_ssh(host, command, timeout=timeout)
+    return {"name": name, "host": host, "output": output or "", "ok": output is not None}
+
+
 @app.get("/")
 def index(request: Request):
     session_value = _session_from_request(request)
     if not _parse_session(session_value):
         return RedirectResponse("/login", status_code=302)
-
     response = FileResponse(os.path.join(WEB_DIR, "index.html"))
     _set_session_cookies(response, session_value)
     return response
@@ -226,9 +268,7 @@ def login(payload: LoginPayload, response: Response):
     telegram_id = str(payload.telegram_id).strip()
     if telegram_id not in ALLOWED_TELEGRAM_IDS:
         raise HTTPException(status_code=401, detail="Telegram ID tidak diizinkan.")
-
-    session_value = _make_session(telegram_id)
-    _set_session_cookies(response, session_value)
+    _set_session_cookies(response, _make_session(telegram_id))
     return {"ok": True, "telegram_id": telegram_id}
 
 
@@ -250,19 +290,15 @@ def overview(opt_session: str | None = Cookie(default=None)):
     _, _, nodes, totals, account_total, source_node = _load_current(include_details=True)
     running = sum(1 for node in nodes if node.get("status") == "running")
     down = len(nodes) - running
-    ranking = sorted(
-        nodes,
-        key=lambda node: (
-            -int((node.get("metrics") or {}).get("submitted", 0) or 0),
-            node.get("name") or "",
-        ),
-    )[:5]
+    stale = sum(1 for node in nodes if node.get("stale", {}).get("level") in {"warning", "danger", "unknown"})
+    ranking = sorted(nodes, key=lambda node: (-int((node.get("metrics") or {}).get("submitted", 0) or 0), _natural_key(node.get("name") or "")))[:5]
     return {
         "generated_at": datetime.now().isoformat(timespec="seconds"),
         "date": str(current_local_date()),
         "total_vps": len(nodes),
         "running": running,
         "down": down,
+        "stale": stale,
         "totals": totals,
         "account_total": account_total,
         "source_node": source_node,
@@ -275,7 +311,7 @@ def overview(opt_session: str | None = Cookie(default=None)):
 def vps_list(opt_session: str | None = Cookie(default=None)):
     _require_login(opt_session)
     data = load_vps()
-    return {"vps": [{"name": name, "host": host} for name, host in sorted(data.items(), key=lambda item: item[0].lower())]}
+    return {"vps": [{"name": name, "host": host} for name, host in sorted(data.items(), key=lambda item: _natural_key(item[0]))]}
 
 
 @app.post("/api/vps")
@@ -283,11 +319,9 @@ def create_vps(payload: VpsPayload, opt_session: str | None = Cookie(default=Non
     telegram_id = _require_login(opt_session)
     name = _validate_vps_name(payload.name)
     host = _validate_vps_host(payload.host)
-
     data = load_vps()
     if name in data:
         raise HTTPException(status_code=409, detail="Nama VPS sudah ada.")
-
     setup_result = _setup_key_if_password(host, payload.password)
     add_vps(name, host)
     _notify_telegram(f"➕ VPS ditambahkan dari dashboard oleh {telegram_id}:\n- {name}: {host}")
@@ -300,13 +334,11 @@ def edit_vps(old_name: str, payload: VpsPayload, opt_session: str | None = Cooki
     old_name = _validate_vps_name(old_name)
     new_name = _validate_vps_name(payload.name)
     host = _validate_vps_host(payload.host)
-
     data = load_vps()
     if old_name not in data:
         raise HTTPException(status_code=404, detail="VPS tidak ditemukan.")
     if new_name != old_name and new_name in data:
         raise HTTPException(status_code=409, detail="Nama VPS baru sudah dipakai.")
-
     setup_result = _setup_key_if_password(host, payload.password)
     old_host = data.get(old_name)
     data.pop(old_name, None)
@@ -324,11 +356,8 @@ def remove_vps(name: str, opt_session: str | None = Cookie(default=None)):
     host = data.get(name)
     if not host:
         raise HTTPException(status_code=404, detail="VPS tidak ditemukan.")
-
-    deleted = delete_vps(name)
-    if not deleted:
+    if not delete_vps(name):
         raise HTTPException(status_code=404, detail="VPS tidak ditemukan.")
-
     _notify_telegram(f"❌ VPS dihapus dari dashboard oleh {telegram_id}:\n- {name}: {host}")
     return {"ok": True, "action": "deleted", "name": name, "host": host}
 
@@ -340,42 +369,71 @@ def node_detail(name: str, opt_session: str | None = Cookie(default=None)):
     host = vps_dict.get(name)
     if not host:
         raise HTTPException(status_code=404, detail="VPS not found")
-
     since_utc, _ = day_window_utc()
     current = check_all_vps({name: host}, include_reward=True, metrics_since=since_utc, include_details=True)
-    if not current:
-        raise HTTPException(status_code=404, detail="VPS not found")
-    return _node_payload(current[0])
+    return _node_payload(current[0]) if current else HTTPException(status_code=404, detail="VPS not found")
 
 
 @app.get("/api/vps/{name}/logs")
 def node_logs(name: str, opt_session: str | None = Cookie(default=None)):
     _require_login(opt_session)
-    vps_dict = load_vps()
-    host = vps_dict.get(name)
-    if not host:
-        raise HTTPException(status_code=404, detail="VPS not found")
-
-    command = "journalctl -u optimai -n 120 --no-pager -o short-iso 2>/dev/null || true"
-    output = run_ssh(host, command, timeout=25)
-    return {"name": name, "logs": output or ""}
+    return _run_node_command(name, "journalctl -u optimai -n 120 --no-pager -o short-iso 2>/dev/null || true", timeout=25)
 
 
 @app.post("/api/vps/{name}/restart")
 def restart_node(name: str, opt_session: str | None = Cookie(default=None)):
     telegram_id = _require_login(opt_session)
-    vps_dict = load_vps()
-    host = vps_dict.get(name)
-    if not host:
-        raise HTTPException(status_code=404, detail="VPS not found")
+    result = _run_node_command(name, NODE_COMMANDS["restart"], timeout=35)
+    _notify_telegram(f"🛠 Restart node dari dashboard oleh {telegram_id}:\n- {name}: {result['host']}")
+    clean = result["output"].strip()
+    result["status"] = "running" if clean == "active" else clean
+    return result
 
-    command = "systemctl restart optimai && sleep 2 && systemctl is-active optimai"
-    output = run_ssh(host, command, timeout=35)
-    if not output:
-        raise HTTPException(status_code=500, detail="Restart command failed")
-    clean = output.strip()
-    _notify_telegram(f"🛠 Restart node dari dashboard oleh {telegram_id}:\n- {name}: {host}")
-    return {"name": name, "status": "running" if clean == "active" else clean, "raw": output}
+
+@app.post("/api/vps/{name}/action")
+def node_action(name: str, payload: ActionPayload, opt_session: str | None = Cookie(default=None)):
+    telegram_id = _require_login(opt_session)
+    action = payload.action.strip()
+    command = NODE_COMMANDS.get(action)
+    if not command:
+        raise HTTPException(status_code=400, detail="Action tidak dikenali.")
+    result = _run_node_command(name, command, timeout=45)
+    _notify_telegram(f"⚙️ Action {action} dari dashboard oleh {telegram_id}:\n- {name}: {result['host']}")
+    result["action"] = action
+    return result
+
+
+@app.post("/api/vps/{name}/mini-command")
+def mini_command(name: str, payload: MiniCommandPayload, opt_session: str | None = Cookie(default=None)):
+    _require_login(opt_session)
+    command_key = payload.command.strip()
+    command = MINI_COMMANDS.get(command_key)
+    if not command:
+        raise HTTPException(status_code=400, detail="Command tidak diizinkan.")
+    result = _run_node_command(name, command, timeout=40)
+    result["command"] = command_key
+    return result
+
+
+@app.post("/api/global-action")
+def global_action(payload: GlobalActionPayload, opt_session: str | None = Cookie(default=None)):
+    telegram_id = _require_login(opt_session)
+    action = payload.action.strip()
+    command_map = {
+        "status_all": NODE_COMMANDS["status"],
+        "reward_all": NODE_COMMANDS["reward"],
+        "restart_all": NODE_COMMANDS["restart"],
+        "start_all": NODE_COMMANDS["start"],
+    }
+    command = command_map.get(action)
+    if not command:
+        raise HTTPException(status_code=400, detail="Global command tidak dikenali.")
+    results = []
+    for name, host in sorted(load_vps().items(), key=lambda item: _natural_key(item[0])):
+        output = run_ssh(host, command, timeout=45)
+        results.append({"name": name, "host": host, "ok": output is not None, "output": output or ""})
+    _notify_telegram(f"🌐 Global command {action} dijalankan dari dashboard oleh {telegram_id}. Total VPS: {len(results)}")
+    return {"action": action, "results": results}
 
 
 @app.get("/api/history/daily")
