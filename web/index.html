@@ -5,14 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>OptimAI Control Dashboard</title>
   <style>
-    :root {
-      --bg:#090d16; --shell:#0d1425; --text:#eaf2ff; --muted:#96a8c4;
-      --line:rgba(148,163,184,.18); --green:#22c55e; --red:#ef4444; --blue:#38bdf8;
-    }
+    :root { --bg:#090d16; --text:#eaf2ff; --muted:#96a8c4; --line:rgba(148,163,184,.18); --green:#22c55e; --red:#ef4444; --blue:#38bdf8; }
     * { box-sizing:border-box; }
     html, body { width:100%; min-height:100%; overflow-x:hidden; }
     body { margin:0; font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:var(--text); background:radial-gradient(circle at top left,#172554 0,transparent 32%),var(--bg); }
-
     .app { min-height:100vh; display:block; padding-left:260px; transition:padding-left .22s ease; }
     body.sidebar-collapsed .app { padding-left:84px; }
     .sidebar { position:fixed; left:0; top:0; bottom:0; width:260px; height:100vh; padding:20px 14px; background:rgba(13,20,37,.94); border-right:1px solid var(--line); z-index:10; overflow:visible; transition:width .22s ease; }
@@ -24,11 +20,8 @@
     .brand p { margin:3px 0 0; color:var(--muted); font-size:12px; }
     body.sidebar-collapsed .brand { justify-content:center; padding:10px 0; }
     body.sidebar-collapsed .brand-text { opacity:0; width:0; overflow:hidden; transform:translateX(-8px); }
-
-    .sidebar-toggle { position:absolute; top:18px; right:-15px; width:30px; height:30px; border:1px solid rgba(148,163,184,.32); color:#334155; background:#e5e7eb; border-radius:10px; padding:0; margin:0; cursor:pointer; font-weight:900; display:grid; place-items:center; z-index:40; box-shadow:0 8px 24px rgba(0,0,0,.25); font-size:14px; line-height:1; }
+    .sidebar-toggle { position:absolute; top:18px; right:-15px; width:30px; height:30px; border:1px solid rgba(148,163,184,.32); color:#334155; background:#e5e7eb; border-radius:10px; cursor:pointer; font-weight:900; display:grid; place-items:center; z-index:40; box-shadow:0 8px 24px rgba(0,0,0,.25); }
     .sidebar-toggle:hover { background:#f8fafc; color:#0f172a; }
-    .toggle-text { display:none; }
-
     .nav { display:grid; gap:8px; overflow:hidden; }
     .nav button { width:100%; border:0; color:var(--muted); background:transparent; border-radius:12px; padding:12px 13px; text-align:left; font-weight:800; cursor:pointer; white-space:nowrap; display:flex; align-items:center; gap:10px; overflow:hidden; }
     .nav button:hover,.nav button.active { color:var(--text); background:rgba(56,189,248,.14); }
@@ -37,26 +30,26 @@
     body.sidebar-collapsed .nav button { justify-content:center; padding:13px 0; gap:0; }
     body.sidebar-collapsed .nav-label { opacity:0; width:0; overflow:hidden; transform:translateX(-8px); }
     body.sidebar-collapsed .nav-icon { font-size:18px; }
-
     .main { min-width:0; width:100%; padding:24px; max-width:1600px; margin:0 auto; }
     .topbar { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:22px; }
     .topbar h2 { margin:0; font-size:clamp(22px,3vw,30px); }
     .topbar p { margin:6px 0 0; color:var(--muted); overflow-wrap:anywhere; }
     .actions { display:flex; align-items:center; justify-content:flex-end; gap:10px; flex-wrap:wrap; }
-    .token-input { width:210px; max-width:100%; background:rgba(15,23,42,.92); color:var(--text); border:1px solid var(--line); border-radius:12px; padding:11px 12px; outline:none; }
+    .token-input,.form-input { background:rgba(15,23,42,.92); color:var(--text); border:1px solid var(--line); border-radius:12px; padding:11px 12px; outline:none; width:100%; }
+    .token-input { width:210px; max-width:100%; }
     .btn { border:0; border-radius:12px; padding:11px 14px; color:white; background:#2563eb; cursor:pointer; font-weight:900; white-space:nowrap; }
     .btn:hover { filter:brightness(1.08); }
     .btn.secondary { background:#334155; }
     .btn.danger { background:#dc2626; }
+    .btn.ok { background:#16a34a; }
     .btn.small { padding:8px 10px; font-size:12px; }
-
     .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; margin-bottom:20px; }
     .stat,.card,.panel { background:linear-gradient(180deg,rgba(30,41,59,.94),rgba(15,23,42,.96)); border:1px solid var(--line); border-radius:18px; box-shadow:0 16px 42px rgba(0,0,0,.20); }
     .stat { padding:15px; min-height:96px; min-width:0; overflow:hidden; }
     .stat .label { color:var(--muted); font-size:12px; font-weight:800; }
     .stat .value { font-size:clamp(24px,3.2vw,32px); font-weight:950; margin-top:8px; line-height:1.05; letter-spacing:-.035em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .stat.long .value { font-size:clamp(19px,2.05vw,25px); letter-spacing:-.045em; }
-    .stat.xlong .value { font-size:clamp(16px,1.65vw,21px); letter-spacing:-.055em; }
+    .stat.long .value { font-size:clamp(19px,2.05vw,25px); }
+    .stat.xlong .value { font-size:clamp(16px,1.65vw,21px); }
     .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(285px,1fr)); gap:16px; }
     .card { padding:16px; min-width:0; }
     .card-head { display:flex; justify-content:space-between; gap:10px; align-items:flex-start; margin-bottom:14px; }
@@ -75,26 +68,16 @@
     th,td { padding:12px; border-bottom:1px solid var(--line); text-align:left; white-space:nowrap; }
     th { color:var(--muted); font-size:12px; text-transform:uppercase; }
     .hidden { display:none!important; } .muted { color:var(--muted); }
+    .form { display:grid; gap:14px; }
+    .form-row label { display:block; color:#bfdbfe; font-size:13px; font-weight:900; margin-bottom:7px; }
+    .form-help { color:var(--muted); font-size:12px; margin-top:6px; line-height:1.5; }
+    .form-actions { display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap; margin-top:4px; }
+    .notice { border:1px solid var(--line); background:rgba(56,189,248,.08); color:#dbeafe; border-radius:14px; padding:12px; font-size:13px; }
     .modal { position:fixed; inset:0; background:rgba(2,6,23,.78); display:none; align-items:center; justify-content:center; padding:18px; z-index:99; }
     .modal.show { display:flex; }
-    .modal-box { width:min(860px,100%); max-height:86vh; overflow:auto; background:#0f172a; border:1px solid var(--line); border-radius:20px; padding:20px; }
+    .modal-box { width:min(680px,100%); max-height:86vh; overflow:auto; background:#0f172a; border:1px solid var(--line); border-radius:20px; padding:20px; }
     pre { background:#020617; padding:14px; border-radius:14px; overflow:auto; color:#dbeafe; border:1px solid var(--line); white-space:pre-wrap; }
-
-    @media (max-width:1050px) {
-      .app { display:block; padding-left:0; }
-      body.sidebar-collapsed .app { display:block; padding-left:0; }
-      .sidebar { position:sticky; top:0; height:auto; width:100%; padding:10px 12px 12px; border-right:0; border-bottom:1px solid var(--line); backdrop-filter:blur(14px); overflow:hidden; }
-      body.sidebar-collapsed .sidebar { width:100%; }
-      .brand { margin:0 0 8px; padding:4px 6px; min-height:auto; }
-      .brand-text { opacity:1!important; width:auto!important; transform:none!important; }
-      .logo { width:36px; height:36px; border-radius:12px; }
-      .brand h1 { font-size:16px; } .brand p { display:none; }
-      .sidebar-toggle { display:none; }
-      .nav { display:flex; gap:8px; overflow-x:auto; padding-bottom:2px; scrollbar-width:thin; }
-      .nav button { width:auto; flex:0 0 auto; padding:10px 12px; text-align:center; margin:0; background:rgba(15,23,42,.55); }
-      .nav-label { opacity:1!important; width:auto!important; transform:none!important; }
-      .main { padding:18px 14px 28px; }
-    }
+    @media (max-width:1050px) { .app,.app.sidebar-collapsed { display:block; padding-left:0; } body.sidebar-collapsed .app{padding-left:0}.sidebar{position:sticky;top:0;height:auto;width:100%;padding:10px 12px 12px;border-right:0;border-bottom:1px solid var(--line);backdrop-filter:blur(14px);overflow:hidden}body.sidebar-collapsed .sidebar{width:100%}.brand{margin:0 0 8px;padding:4px 6px;min-height:auto}.brand-text{opacity:1!important;width:auto!important;transform:none!important}.logo{width:36px;height:36px;border-radius:12px}.brand h1{font-size:16px}.brand p{display:none}.sidebar-toggle{display:none}.nav{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px}.nav button{width:auto;flex:0 0 auto;padding:10px 12px;text-align:center;margin:0;background:rgba(15,23,42,.55)}.nav-label{opacity:1!important;width:auto!important;transform:none!important}.main{padding:18px 14px 28px} }
     @media (max-width:720px) { .topbar{display:grid;grid-template-columns:1fr;gap:12px;margin-bottom:16px}.actions{justify-content:stretch}.token-input{flex:1 1 180px;width:auto;min-width:0}.stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.grid{grid-template-columns:1fr;gap:12px}.card{padding:14px}.panel{padding:14px;border-radius:16px} }
     @media (max-width:430px) { .main{padding:14px 10px 24px}.stats{grid-template-columns:1fr}.metrics{grid-template-columns:1fr}.card-head{display:grid;gap:8px}.btn.small{flex:1 1 90px}.modal{padding:10px}.modal-box{padding:14px;border-radius:16px} }
   </style>
@@ -107,6 +90,7 @@
       <div class="nav">
         <button class="active" data-page="overview"><span class="nav-icon">🏠</span><span class="nav-label">Overview</span></button>
         <button data-page="nodes"><span class="nav-icon">🖥</span><span class="nav-label">VPS Nodes</span></button>
+        <button data-page="manage"><span class="nav-icon">🛠</span><span class="nav-label">Kelola VPS</span></button>
         <button data-page="ranking"><span class="nav-icon">🏆</span><span class="nav-label">Ranking</span></button>
         <button data-page="daily"><span class="nav-icon">📅</span><span class="nav-label">Daily Report</span></button>
         <button data-page="weekly"><span class="nav-icon">📈</span><span class="nav-label">Weekly Report</span></button>
@@ -114,42 +98,42 @@
     </aside>
     <main class="main">
       <div class="topbar"><div><h2 id="page-title">Overview</h2><p id="sub-title">Loading data...</p></div><div class="actions"><input id="token" class="token-input" type="password" placeholder="Dashboard token" /><button class="btn secondary" onclick="loadAll()">Refresh</button></div></div>
-      <section id="overview" class="page"></section><section id="nodes" class="page hidden"></section><section id="ranking" class="page hidden"></section><section id="daily" class="page hidden"></section><section id="weekly" class="page hidden"></section>
+      <section id="overview" class="page"></section><section id="nodes" class="page hidden"></section><section id="manage" class="page hidden"></section><section id="ranking" class="page hidden"></section><section id="daily" class="page hidden"></section><section id="weekly" class="page hidden"></section>
     </main>
   </div>
   <div id="modal" class="modal" onclick="closeModal(event)"><div class="modal-box" onclick="event.stopPropagation()"><div class="topbar"><div><h2 id="modal-title">Detail</h2><p id="modal-sub" class="muted"></p></div><button class="btn secondary" onclick="hideModal()">Close</button></div><div id="modal-content"></div></div></div>
   <script>
-    let state = null; let currentPage = 'overview';
+    let state = null; let currentPage = 'overview'; let editingName = null;
     const rup = (v) => { if (v === null || v === undefined) return '-'; const n = Number(v); if (Number.isNaN(n)) return String(v); return n.toLocaleString('en-US', { maximumFractionDigits: 0 }); };
     const metric = (node, key) => Number((node.metrics || {})[key] || 0);
     const token = () => document.getElementById('token').value || localStorage.getItem('dashboardToken') || '';
-
+    function escapeHtml(text) { return String(text).replace(/[&<>'\"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
     function applySidebarState() { const collapsed = localStorage.getItem('sidebarCollapsed') === '1'; document.body.classList.toggle('sidebar-collapsed', collapsed); const btn = document.querySelector('.sidebar-toggle'); document.getElementById('toggle-icon').textContent = collapsed ? '▶' : '◀'; btn.title = collapsed ? 'Buka sidebar' : 'Tutup sidebar'; btn.setAttribute('aria-label', btn.title); }
     function toggleSidebar() { const next = !(localStorage.getItem('sidebarCollapsed') === '1'); localStorage.setItem('sidebarCollapsed', next ? '1' : '0'); applySidebarState(); }
     applySidebarState();
-
-    document.getElementById('token').addEventListener('change', (e) => localStorage.setItem('dashboardToken', e.target.value));
-    document.getElementById('token').value = localStorage.getItem('dashboardToken') || '';
+    document.getElementById('token').addEventListener('change', (e) => localStorage.setItem('dashboardToken', e.target.value)); document.getElementById('token').value = localStorage.getItem('dashboardToken') || '';
     document.querySelectorAll('.nav button').forEach(btn => { btn.addEventListener('click', () => { document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active')); btn.classList.add('active'); showPage(btn.dataset.page); }); });
-
-    async function api(path, opts = {}) { const headers = opts.headers || {}; if (token()) headers['X-Dashboard-Token'] = token(); const res = await fetch(path, { ...opts, headers }); if (!res.ok) throw new Error(await res.text()); return res.json(); }
+    async function api(path, opts = {}) { const headers = opts.headers || {}; if (token()) headers['X-Dashboard-Token'] = token(); const res = await fetch(path, { ...opts, headers }); if (!res.ok) { let msg = await res.text(); try { msg = JSON.parse(msg).detail || msg; } catch(e) {} throw new Error(msg); } return res.json(); }
     async function loadAll() { document.getElementById('sub-title').textContent = 'Refreshing data from all VPS...'; try { state = await api('/api/overview'); renderAll(); } catch (err) { document.getElementById('sub-title').textContent = 'Error: ' + err.message; } }
-    function showPage(page) { currentPage = page; document.querySelectorAll('.page').forEach(el => el.classList.add('hidden')); document.getElementById(page).classList.remove('hidden'); const titles = { overview:'Overview', nodes:'VPS Nodes', ranking:'Ranking Harian', daily:'Daily Report', weekly:'Weekly Report' }; document.getElementById('page-title').textContent = titles[page]; renderAll(); }
-    function renderAll() { if (!state) return; document.getElementById('sub-title').textContent = `Last update: ${state.generated_at} | Date: ${state.date}`; renderOverview(); renderNodes(); renderRanking(); renderDaily(); renderWeekly(); }
+    function showPage(page) { currentPage = page; document.querySelectorAll('.page').forEach(el => el.classList.add('hidden')); document.getElementById(page).classList.remove('hidden'); const titles = { overview:'Overview', nodes:'VPS Nodes', manage:'Kelola VPS', ranking:'Ranking Harian', daily:'Daily Report', weekly:'Weekly Report' }; document.getElementById('page-title').textContent = titles[page]; renderAll(); }
+    function renderAll() { if (!state) return; document.getElementById('sub-title').textContent = `Last update: ${state.generated_at} | Date: ${state.date}`; renderOverview(); renderNodes(); renderManage(); renderRanking(); renderDaily(); renderWeekly(); }
     function statsHtml() { const t = state.totals || {}; const stats = [['Total VPS',state.total_vps],['Running',state.running],['Down',state.down],['Task Unik',t.assignments],['Submit',t.submitted],['Gagal Final',t.failed],['Pending',t.pending],['Retry',t.retried],['Total Akun',state.account_total]]; return `<div class="stats">${stats.map(([label,value]) => { const text = rup(value); const len = String(text).length; const cls = len > 11 ? ' xlong' : len > 7 ? ' long' : ''; return `<div class="stat${cls}" title="${text}"><div class="label">${label}</div><div class="value">${text}</div></div>`; }).join('')}</div>`; }
     function nodeCard(node) { const status = node.status === 'running' ? 'running' : 'down'; return `<div class="card"><div class="card-head"><div><h3>${node.name}</h3><div class="host">${node.host || '-'}</div></div><span class="badge ${status}">${status === 'running' ? '✅ Running' : '❌ Down'}</span></div><div class="metrics"><div class="metric"><span>Task</span><b>${metric(node,'assignments')}</b></div><div class="metric"><span>Submit</span><b>${metric(node,'submitted')}</b></div><div class="metric"><span>Gagal</span><b>${metric(node,'failed')}</b></div><div class="metric"><span>Pending</span><b>${metric(node,'pending')}</b></div><div class="metric"><span>Retry</span><b>${metric(node,'retried')}</b></div><div class="metric"><span>Success</span><b>${node.success_rate || 0}%</b></div></div><div class="card-actions"><button class="btn small secondary" onclick="detail('${node.name}')">Detail</button><button class="btn small danger" onclick="restartNode('${node.name}')">Restart</button><button class="btn small secondary" onclick="logs('${node.name}')">Logs</button></div></div>`; }
     function renderOverview() { const top = (state.top_nodes || []).map((n,i) => `<tr><td>${i+1}</td><td>${n.name}</td><td>${metric(n,'submitted')}</td><td>${metric(n,'assignments')}</td><td>${n.success_rate || 0}%</td></tr>`).join(''); document.getElementById('overview').innerHTML = `${statsHtml()}<div class="panel"><h3>🏆 Top 5 Hari Ini</h3><table><thead><tr><th>#</th><th>Node</th><th>Submit</th><th>Task</th><th>Success</th></tr></thead><tbody>${top}</tbody></table></div><div class="grid">${state.nodes.map(nodeCard).join('')}</div>`; }
     function renderNodes() { document.getElementById('nodes').innerHTML = `<div class="grid">${state.nodes.map(nodeCard).join('')}</div>`; }
+    function renderManage() { const rows = [...state.nodes].sort((a,b)=>a.name.localeCompare(b.name, undefined, {numeric:true})).map(n => `<tr><td><b>${n.name}</b></td><td>${escapeHtml(n.host || '-')}</td><td>${n.status === 'running' ? '✅ Running' : '❌ Down'}</td><td><button class="btn small secondary" onclick="openVpsForm('edit','${n.name}','${escapeHtml(n.host || '')}')">Edit</button> <button class="btn small danger" onclick="deleteVps('${n.name}')">Hapus</button></td></tr>`).join(''); document.getElementById('manage').innerHTML = `<div class="panel"><div class="topbar"><div><h3>🛠 Kelola VPS</h3><p class="muted">Tambah, edit, atau hapus VPS. Data ini sama dengan yang dipakai bot Telegram.</p></div><button class="btn ok" onclick="openVpsForm('add')">➕ Tambah VPS</button></div><table><thead><tr><th>Nama VPS</th><th>Host SSH</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${rows}</tbody></table></div>`; }
     function renderRanking() { const rows = [...state.nodes].sort((a,b) => metric(b,'submitted') - metric(a,'submitted')).map((n,i) => `<tr><td>${i+1}</td><td>${n.name}</td><td>${n.status}</td><td>${metric(n,'submitted')}</td><td>${metric(n,'assignments')}</td><td>${metric(n,'failed')}</td><td>${n.success_rate || 0}%</td></tr>`).join(''); document.getElementById('ranking').innerHTML = `<div class="panel"><table><thead><tr><th>#</th><th>Node</th><th>Status</th><th>Submit</th><th>Task</th><th>Gagal</th><th>Success</th></tr></thead><tbody>${rows}</tbody></table></div>`; }
     async function renderDaily() { if (currentPage !== 'daily') return; const data = await api('/api/history/daily'); const rows = (data.days || []).map(([date,d]) => `<tr><td>${date}</td><td>${d.totals.assignments || 0}</td><td>${d.totals.submitted || 0}</td><td>${d.totals.failed || 0}</td><td>${d.totals.pending || 0}</td><td>${d.account_total || '-'}</td></tr>`).join(''); document.getElementById('daily').innerHTML = `<div class="panel"><table><thead><tr><th>Tanggal</th><th>Task</th><th>Submit</th><th>Gagal</th><th>Pending</th><th>Total Akun</th></tr></thead><tbody>${rows}</tbody></table></div>`; }
     async function renderWeekly() { if (currentPage !== 'weekly') return; const data = await api('/api/history/weekly'); const t = data.totals || {}; const rows = Object.entries(data.nodes || {}).sort((a,b) => (b[1].submitted || 0) - (a[1].submitted || 0)).map(([name,m],i) => `<tr><td>${i+1}</td><td>${name}</td><td>${m.assignments || 0}</td><td>${m.submitted || 0}</td><td>${m.failed || 0}</td><td>${m.pending || 0}</td></tr>`).join(''); document.getElementById('weekly').innerHTML = `<div class="panel"><h3>7 Hari: Task ${t.assignments || 0} | Submit ${t.submitted || 0} | Gagal ${t.failed || 0}</h3><table><thead><tr><th>#</th><th>Node</th><th>Task</th><th>Submit</th><th>Gagal</th><th>Pending</th></tr></thead><tbody>${rows}</tbody></table></div>`; }
+    function openVpsForm(mode, name='', host='') { editingName = mode === 'edit' ? name : null; document.getElementById('modal-title').textContent = mode === 'edit' ? '✏️ Edit VPS' : '➕ Tambah VPS'; document.getElementById('modal-sub').textContent = mode === 'edit' ? name : 'Isi data VPS baru'; document.getElementById('modal-content').innerHTML = `<div class="form"><div class="notice">Password SSH hanya dipakai sekali untuk pasang SSH key. Password tidak disimpan. Kosongkan jika key sudah terpasang.</div><div class="form-row"><label>Nama VPS</label><input id="vps-name" class="form-input" placeholder="contoh: OptimAI_15" value="${escapeHtml(name)}"></div><div class="form-row"><label>Masukkan Host SSH</label><input id="vps-host" class="form-input" placeholder="contoh: root@1.2.3.4" value="${host}"></div><div class="form-row"><label>Masukkan Password SSH</label><input id="vps-pass" class="form-input" type="password" placeholder="kosongkan jika SSH key sudah ada"><div class="form-help">Format host wajib user@ip. Contoh: root@143.xxx.xxx.xxx</div></div><div id="form-status" class="muted"></div><div class="form-actions"><button class="btn secondary" onclick="hideModal()">Batal</button><button class="btn ok" onclick="saveVpsForm()">Simpan</button></div></div>`; document.getElementById('modal').classList.add('show'); setTimeout(()=>document.getElementById('vps-name').focus(), 50); }
+    async function saveVpsForm() { const payload = { name: document.getElementById('vps-name').value.trim(), host: document.getElementById('vps-host').value.trim(), password: document.getElementById('vps-pass').value }; const status = document.getElementById('form-status'); status.textContent = 'Menyimpan...'; try { const path = editingName ? '/api/vps/' + encodeURIComponent(editingName) : '/api/vps'; const method = editingName ? 'PUT' : 'POST'; const res = await api(path, { method, headers: { 'Content-Type':'application/json' }, body: JSON.stringify(payload) }); status.textContent = '✅ Berhasil: ' + (res.message || res.action); await loadAll(); hideModal(); showPage('manage'); } catch (err) { status.textContent = '❌ ' + err.message; } }
+    async function deleteVps(name) { if (!confirm('Yakin hapus ' + name + ' dari daftar bot dan dashboard?')) return; try { await api('/api/vps/' + encodeURIComponent(name), { method:'DELETE' }); await loadAll(); showPage('manage'); alert('VPS berhasil dihapus: ' + name); } catch (err) { alert('Gagal hapus: ' + err.message); } }
     async function detail(name) { showModal('Loading detail...',''); const node = await api('/api/vps/' + encodeURIComponent(name)); document.getElementById('modal-title').textContent = '🔎 Detail ' + name; document.getElementById('modal-sub').textContent = node.host || ''; document.getElementById('modal-content').innerHTML = `<div class="grid">${nodeCard(node)}</div><pre>${JSON.stringify(node.system || {}, null, 2)}</pre>`; }
     async function logs(name) { showModal('Loading logs...',''); const data = await api('/api/vps/' + encodeURIComponent(name) + '/logs'); document.getElementById('modal-title').textContent = '📜 Logs ' + name; document.getElementById('modal-content').innerHTML = `<pre>${escapeHtml(data.logs || 'No logs')}</pre>`; }
     async function restartNode(name) { if (!confirm('Yakin restart ' + name + '?')) return; showModal('Restarting ' + name + '...',''); try { const res = await api('/api/vps/' + encodeURIComponent(name) + '/restart', { method:'POST' }); document.getElementById('modal-title').textContent = '✅ Restart selesai'; document.getElementById('modal-content').innerHTML = `<pre>${JSON.stringify(res,null,2)}</pre>`; await loadAll(); } catch (err) { document.getElementById('modal-title').textContent = '❌ Restart gagal'; document.getElementById('modal-content').innerHTML = `<pre>${escapeHtml(err.message)}</pre>`; } }
     function showModal(title,sub) { document.getElementById('modal-title').textContent = title; document.getElementById('modal-sub').textContent = sub || ''; document.getElementById('modal-content').innerHTML = ''; document.getElementById('modal').classList.add('show'); }
-    function hideModal() { document.getElementById('modal').classList.remove('show'); }
+    function hideModal() { document.getElementById('modal').classList.remove('show'); editingName = null; }
     function closeModal(e) { if (e.target.id === 'modal') hideModal(); }
-    function escapeHtml(text) { return String(text).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
     loadAll(); setInterval(loadAll, 120000);
   </script>
 </body>
