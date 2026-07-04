@@ -6,336 +6,147 @@
   <title>OptimAI Control Dashboard</title>
   <style>
     :root {
-      --bg: #090d16;
-      --shell: #0d1425;
-      --panel: #121b2d;
-      --panel2: #172238;
-      --text: #eaf2ff;
-      --muted: #96a8c4;
-      --line: rgba(148, 163, 184, .18);
-      --blue: #38bdf8;
-      --green: #22c55e;
-      --red: #ef4444;
+      --bg:#090d16; --shell:#0d1425; --text:#eaf2ff; --muted:#96a8c4;
+      --line:rgba(148,163,184,.18); --green:#22c55e; --red:#ef4444; --blue:#38bdf8;
     }
+    * { box-sizing:border-box; }
+    html, body { width:100%; min-height:100%; overflow-x:hidden; }
+    body { margin:0; font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:var(--text); background:radial-gradient(circle at top left,#172554 0,transparent 32%),var(--bg); }
 
-    * { box-sizing: border-box; }
-    html, body { width: 100%; min-height: 100%; overflow-x: hidden; }
-    body {
-      margin: 0;
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      color: var(--text);
-      background: radial-gradient(circle at top left, #172554 0, transparent 32%), var(--bg);
-    }
+    .app { min-height:100vh; display:grid; grid-template-columns:260px minmax(0,1fr); transition:grid-template-columns .22s ease; }
+    body.sidebar-collapsed .app { grid-template-columns:84px minmax(0,1fr); }
+    .sidebar { position:sticky; top:0; height:100vh; padding:20px 14px; background:rgba(13,20,37,.94); border-right:1px solid var(--line); z-index:10; overflow:hidden; }
+    .brand { display:flex; align-items:center; gap:12px; padding:10px; margin-bottom:16px; min-height:62px; }
+    .logo { width:42px; height:42px; border-radius:14px; display:grid; place-items:center; background:linear-gradient(135deg,#38bdf8,#8b5cf6); font-weight:900; color:#fff; flex:0 0 auto; }
+    .brand-text { min-width:0; white-space:nowrap; transition:opacity .18s ease, transform .18s ease; }
+    .brand h1 { margin:0; font-size:17px; line-height:1.1; }
+    .brand p { margin:3px 0 0; color:var(--muted); font-size:12px; }
+    body.sidebar-collapsed .brand { justify-content:center; padding:10px 0; }
+    body.sidebar-collapsed .brand-text { opacity:0; width:0; overflow:hidden; transform:translateX(-8px); }
 
-    .app { min-height: 100vh; display: grid; grid-template-columns: 260px minmax(0, 1fr); }
-    .sidebar {
-      position: sticky;
-      top: 0;
-      height: 100vh;
-      padding: 20px 14px;
-      background: rgba(13, 20, 37, .94);
-      border-right: 1px solid var(--line);
-      z-index: 10;
-    }
-    .brand { display: flex; align-items: center; gap: 12px; padding: 10px; margin-bottom: 22px; }
-    .logo {
-      width: 42px; height: 42px; border-radius: 14px; display: grid; place-items: center;
-      background: linear-gradient(135deg, #38bdf8, #8b5cf6); font-weight: 900; color: #fff;
-      flex: 0 0 auto;
-    }
-    .brand h1 { margin: 0; font-size: 17px; line-height: 1.1; }
-    .brand p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
-    .nav { display: grid; gap: 6px; }
-    .nav button {
-      width: 100%; border: 0; color: var(--muted); background: transparent; border-radius: 12px;
-      padding: 12px 13px; text-align: left; font-weight: 800; cursor: pointer; white-space: nowrap;
-    }
-    .nav button:hover, .nav button.active { color: var(--text); background: rgba(56, 189, 248, .14); }
+    .sidebar-toggle { width:100%; border:1px solid var(--line); color:var(--text); background:rgba(56,189,248,.10); border-radius:14px; padding:10px 12px; margin-bottom:16px; cursor:pointer; font-weight:900; display:flex; align-items:center; justify-content:center; gap:8px; }
+    .toggle-text { white-space:nowrap; }
+    body.sidebar-collapsed .toggle-text { display:none; }
 
-    .main { min-width: 0; width: 100%; padding: 24px; max-width: 1600px; margin: 0 auto; }
-    .topbar {
-      display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 22px;
-    }
-    .topbar h2 { margin: 0; font-size: clamp(22px, 3vw, 30px); }
-    .topbar p { margin: 6px 0 0; color: var(--muted); overflow-wrap: anywhere; }
-    .actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
-    .token-input {
-      width: 210px; max-width: 100%; background: rgba(15, 23, 42, .92); color: var(--text);
-      border: 1px solid var(--line); border-radius: 12px; padding: 11px 12px; outline: none;
-    }
-    .btn {
-      border: 0; border-radius: 12px; padding: 11px 14px; color: white; background: #2563eb;
-      cursor: pointer; font-weight: 900; white-space: nowrap;
-    }
-    .btn:hover { filter: brightness(1.08); }
-    .btn.secondary { background: #334155; }
-    .btn.danger { background: #dc2626; }
-    .btn.small { padding: 8px 10px; font-size: 12px; }
+    .nav { display:grid; gap:8px; }
+    .nav button { width:100%; border:0; color:var(--muted); background:transparent; border-radius:12px; padding:12px 13px; text-align:left; font-weight:800; cursor:pointer; white-space:nowrap; display:flex; align-items:center; gap:10px; overflow:hidden; }
+    .nav button:hover,.nav button.active { color:var(--text); background:rgba(56,189,248,.14); }
+    .nav-icon { width:22px; flex:0 0 22px; text-align:center; font-size:16px; }
+    .nav-label { transition:opacity .16s ease, transform .16s ease; }
+    body.sidebar-collapsed .nav button { justify-content:center; padding:13px 0; gap:0; }
+    body.sidebar-collapsed .nav-label { opacity:0; width:0; overflow:hidden; transform:translateX(-8px); }
+    body.sidebar-collapsed .nav-icon { font-size:18px; }
 
-    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 20px; }
-    .stat, .card, .panel {
-      background: linear-gradient(180deg, rgba(30, 41, 59, .94), rgba(15, 23, 42, .96));
-      border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 16px 42px rgba(0, 0, 0, .20);
+    .main { min-width:0; width:100%; padding:24px; max-width:1600px; margin:0 auto; }
+    .topbar { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:22px; }
+    .topbar h2 { margin:0; font-size:clamp(22px,3vw,30px); }
+    .topbar p { margin:6px 0 0; color:var(--muted); overflow-wrap:anywhere; }
+    .actions { display:flex; align-items:center; justify-content:flex-end; gap:10px; flex-wrap:wrap; }
+    .token-input { width:210px; max-width:100%; background:rgba(15,23,42,.92); color:var(--text); border:1px solid var(--line); border-radius:12px; padding:11px 12px; outline:none; }
+    .btn { border:0; border-radius:12px; padding:11px 14px; color:white; background:#2563eb; cursor:pointer; font-weight:900; white-space:nowrap; }
+    .btn:hover { filter:brightness(1.08); }
+    .btn.secondary { background:#334155; }
+    .btn.danger { background:#dc2626; }
+    .btn.small { padding:8px 10px; font-size:12px; }
+
+    .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; margin-bottom:20px; }
+    .stat,.card,.panel { background:linear-gradient(180deg,rgba(30,41,59,.94),rgba(15,23,42,.96)); border:1px solid var(--line); border-radius:18px; box-shadow:0 16px 42px rgba(0,0,0,.20); }
+    .stat { padding:15px; min-height:96px; }
+    .stat .label { color:var(--muted); font-size:12px; font-weight:800; }
+    .stat .value { font-size:clamp(24px,5vw,32px); font-weight:950; margin-top:8px; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(285px,1fr)); gap:16px; }
+    .card { padding:16px; min-width:0; }
+    .card-head { display:flex; justify-content:space-between; gap:10px; align-items:flex-start; margin-bottom:14px; }
+    .card h3 { margin:0; font-size:18px; }
+    .host { color:var(--muted); font-size:12px; margin-top:4px; word-break:break-all; }
+    .badge { display:inline-flex; align-items:center; gap:6px; border-radius:999px; padding:6px 10px; font-size:12px; font-weight:950; white-space:nowrap; }
+    .badge.running { background:rgba(34,197,94,.14); color:#86efac; }
+    .badge.down { background:rgba(239,68,68,.14); color:#fecaca; }
+    .metrics { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-bottom:14px; }
+    .metric { border:1px solid var(--line); border-radius:12px; padding:10px; background:rgba(15,23,42,.56); min-width:0; }
+    .metric span { display:block; color:var(--muted); font-size:11px; font-weight:850; }
+    .metric b { display:block; font-size:20px; margin-top:3px; }
+    .card-actions { display:flex; gap:8px; flex-wrap:wrap; }
+    .panel { padding:18px; margin-bottom:18px; overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; min-width:620px; }
+    th,td { padding:12px; border-bottom:1px solid var(--line); text-align:left; white-space:nowrap; }
+    th { color:var(--muted); font-size:12px; text-transform:uppercase; }
+    .hidden { display:none!important; } .muted { color:var(--muted); }
+    .modal { position:fixed; inset:0; background:rgba(2,6,23,.78); display:none; align-items:center; justify-content:center; padding:18px; z-index:99; }
+    .modal.show { display:flex; }
+    .modal-box { width:min(860px,100%); max-height:86vh; overflow:auto; background:#0f172a; border:1px solid var(--line); border-radius:20px; padding:20px; }
+    pre { background:#020617; padding:14px; border-radius:14px; overflow:auto; color:#dbeafe; border:1px solid var(--line); white-space:pre-wrap; }
+
+    @media (max-width:1050px) {
+      .app { display:block; }
+      body.sidebar-collapsed .app { display:block; }
+      .sidebar { position:sticky; top:0; height:auto; width:100%; padding:10px 12px 12px; border-right:0; border-bottom:1px solid var(--line); backdrop-filter:blur(14px); }
+      .brand { margin:0 0 8px; padding:4px 6px; min-height:auto; }
+      .brand-text { opacity:1!important; width:auto!important; transform:none!important; }
+      .logo { width:36px; height:36px; border-radius:12px; }
+      .brand h1 { font-size:16px; } .brand p { display:none; }
+      .sidebar-toggle { display:none; }
+      .nav { display:flex; gap:8px; overflow-x:auto; padding-bottom:2px; scrollbar-width:thin; }
+      .nav button { width:auto; flex:0 0 auto; padding:10px 12px; text-align:center; margin:0; background:rgba(15,23,42,.55); }
+      .nav-label { opacity:1!important; width:auto!important; transform:none!important; }
+      .main { padding:18px 14px 28px; }
     }
-    .stat { padding: 15px; min-height: 96px; }
-    .stat .label { color: var(--muted); font-size: 12px; font-weight: 800; }
-    .stat .value { font-size: clamp(24px, 5vw, 32px); font-weight: 950; margin-top: 8px; }
-
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(285px, 1fr)); gap: 16px; }
-    .card { padding: 16px; min-width: 0; }
-    .card-head { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; margin-bottom: 14px; }
-    .card h3 { margin: 0; font-size: 18px; }
-    .host { color: var(--muted); font-size: 12px; margin-top: 4px; word-break: break-all; }
-    .badge { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 6px 10px; font-size: 12px; font-weight: 950; white-space: nowrap; }
-    .badge.running { background: rgba(34, 197, 94, .14); color: #86efac; }
-    .badge.down { background: rgba(239, 68, 68, .14); color: #fecaca; }
-    .metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
-    .metric { border: 1px solid var(--line); border-radius: 12px; padding: 10px; background: rgba(15, 23, 42, .56); min-width: 0; }
-    .metric span { display: block; color: var(--muted); font-size: 11px; font-weight: 850; }
-    .metric b { display: block; font-size: 20px; margin-top: 3px; }
-    .card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-    .panel { padding: 18px; margin-bottom: 18px; overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; min-width: 620px; }
-    th, td { padding: 12px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
-    th { color: var(--muted); font-size: 12px; text-transform: uppercase; }
-    .hidden { display: none !important; }
-    .muted { color: var(--muted); }
-
-    .modal { position: fixed; inset: 0; background: rgba(2, 6, 23, .78); display: none; align-items: center; justify-content: center; padding: 18px; z-index: 99; }
-    .modal.show { display: flex; }
-    .modal-box { width: min(860px, 100%); max-height: 86vh; overflow: auto; background: #0f172a; border: 1px solid var(--line); border-radius: 20px; padding: 20px; }
-    pre { background: #020617; padding: 14px; border-radius: 14px; overflow: auto; color: #dbeafe; border: 1px solid var(--line); white-space: pre-wrap; }
-
-    @media (max-width: 1050px) {
-      .app { display: block; }
-      .sidebar {
-        position: sticky; top: 0; height: auto; width: 100%; padding: 10px 12px 12px;
-        border-right: 0; border-bottom: 1px solid var(--line); backdrop-filter: blur(14px);
-      }
-      .brand { margin: 0 0 8px; padding: 4px 6px; }
-      .logo { width: 36px; height: 36px; border-radius: 12px; }
-      .brand h1 { font-size: 16px; }
-      .brand p { display: none; }
-      .nav { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin; }
-      .nav button { width: auto; flex: 0 0 auto; padding: 10px 12px; text-align: center; margin: 0; background: rgba(15, 23, 42, .55); }
-      .main { padding: 18px 14px 28px; }
-      .topbar { align-items: stretch; }
-    }
-
-    @media (max-width: 720px) {
-      .topbar { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 16px; }
-      .actions { justify-content: stretch; }
-      .token-input { flex: 1 1 180px; width: auto; min-width: 0; }
-      .actions .btn { flex: 0 0 auto; }
-      .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-      .stat { min-height: 86px; padding: 13px; }
-      .grid { grid-template-columns: 1fr; gap: 12px; }
-      .card { padding: 14px; }
-      .panel { padding: 14px; border-radius: 16px; }
-    }
-
-    @media (max-width: 430px) {
-      .main { padding: 14px 10px 24px; }
-      .stats { grid-template-columns: 1fr; }
-      .metrics { grid-template-columns: 1fr; }
-      .card-head { display: grid; gap: 8px; }
-      .btn.small { flex: 1 1 90px; }
-      .modal { padding: 10px; }
-      .modal-box { padding: 14px; border-radius: 16px; }
-    }
+    @media (max-width:720px) { .topbar{display:grid;grid-template-columns:1fr;gap:12px;margin-bottom:16px}.actions{justify-content:stretch}.token-input{flex:1 1 180px;width:auto;min-width:0}.stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.grid{grid-template-columns:1fr;gap:12px}.card{padding:14px}.panel{padding:14px;border-radius:16px} }
+    @media (max-width:430px) { .main{padding:14px 10px 24px}.stats{grid-template-columns:1fr}.metrics{grid-template-columns:1fr}.card-head{display:grid;gap:8px}.btn.small{flex:1 1 90px}.modal{padding:10px}.modal-box{padding:14px;border-radius:16px} }
   </style>
 </head>
 <body>
   <div class="app">
     <aside class="sidebar">
-      <div class="brand">
-        <div class="logo">O</div>
-        <div><h1>OptimAI Control</h1><p>Node dashboard</p></div>
-      </div>
+      <div class="brand"><div class="logo">O</div><div class="brand-text"><h1>OptimAI Control</h1><p>Node dashboard</p></div></div>
+      <button class="sidebar-toggle" onclick="toggleSidebar()"><span id="toggle-icon">⬅️</span><span class="toggle-text">Kecilkan</span></button>
       <div class="nav">
-        <button class="active" data-page="overview">🏠 Overview</button>
-        <button data-page="nodes">🖥 VPS Nodes</button>
-        <button data-page="ranking">🏆 Ranking</button>
-        <button data-page="daily">📅 Daily Report</button>
-        <button data-page="weekly">📈 Weekly Report</button>
+        <button class="active" data-page="overview"><span class="nav-icon">🏠</span><span class="nav-label">Overview</span></button>
+        <button data-page="nodes"><span class="nav-icon">🖥</span><span class="nav-label">VPS Nodes</span></button>
+        <button data-page="ranking"><span class="nav-icon">🏆</span><span class="nav-label">Ranking</span></button>
+        <button data-page="daily"><span class="nav-icon">📅</span><span class="nav-label">Daily Report</span></button>
+        <button data-page="weekly"><span class="nav-icon">📈</span><span class="nav-label">Weekly Report</span></button>
       </div>
     </aside>
-
     <main class="main">
-      <div class="topbar">
-        <div><h2 id="page-title">Overview</h2><p id="sub-title">Loading data...</p></div>
-        <div class="actions">
-          <input id="token" class="token-input" type="password" placeholder="Dashboard token" />
-          <button class="btn secondary" onclick="loadAll()">Refresh</button>
-        </div>
-      </div>
-
-      <section id="overview" class="page"></section>
-      <section id="nodes" class="page hidden"></section>
-      <section id="ranking" class="page hidden"></section>
-      <section id="daily" class="page hidden"></section>
-      <section id="weekly" class="page hidden"></section>
+      <div class="topbar"><div><h2 id="page-title">Overview</h2><p id="sub-title">Loading data...</p></div><div class="actions"><input id="token" class="token-input" type="password" placeholder="Dashboard token" /><button class="btn secondary" onclick="loadAll()">Refresh</button></div></div>
+      <section id="overview" class="page"></section><section id="nodes" class="page hidden"></section><section id="ranking" class="page hidden"></section><section id="daily" class="page hidden"></section><section id="weekly" class="page hidden"></section>
     </main>
   </div>
-
-  <div id="modal" class="modal" onclick="closeModal(event)">
-    <div class="modal-box" onclick="event.stopPropagation()">
-      <div class="topbar">
-        <div><h2 id="modal-title">Detail</h2><p id="modal-sub" class="muted"></p></div>
-        <button class="btn secondary" onclick="hideModal()">Close</button>
-      </div>
-      <div id="modal-content"></div>
-    </div>
-  </div>
-
+  <div id="modal" class="modal" onclick="closeModal(event)"><div class="modal-box" onclick="event.stopPropagation()"><div class="topbar"><div><h2 id="modal-title">Detail</h2><p id="modal-sub" class="muted"></p></div><button class="btn secondary" onclick="hideModal()">Close</button></div><div id="modal-content"></div></div></div>
   <script>
-    let state = null;
-    let currentPage = 'overview';
-
+    let state = null; let currentPage = 'overview';
     const rup = (v) => v === null || v === undefined ? '-' : Number(v).toLocaleString('en-US');
     const metric = (node, key) => Number((node.metrics || {})[key] || 0);
     const token = () => document.getElementById('token').value || localStorage.getItem('dashboardToken') || '';
 
+    function applySidebarState() { const collapsed = localStorage.getItem('sidebarCollapsed') === '1'; document.body.classList.toggle('sidebar-collapsed', collapsed); document.getElementById('toggle-icon').textContent = collapsed ? '➡️' : '⬅️'; }
+    function toggleSidebar() { const next = !(localStorage.getItem('sidebarCollapsed') === '1'); localStorage.setItem('sidebarCollapsed', next ? '1' : '0'); applySidebarState(); }
+    applySidebarState();
+
     document.getElementById('token').addEventListener('change', (e) => localStorage.setItem('dashboardToken', e.target.value));
     document.getElementById('token').value = localStorage.getItem('dashboardToken') || '';
+    document.querySelectorAll('.nav button').forEach(btn => { btn.addEventListener('click', () => { document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active')); btn.classList.add('active'); showPage(btn.dataset.page); }); });
 
-    document.querySelectorAll('.nav button').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        showPage(btn.dataset.page);
-      });
-    });
-
-    async function api(path, opts = {}) {
-      const headers = opts.headers || {};
-      if (token()) headers['X-Dashboard-Token'] = token();
-      const res = await fetch(path, { ...opts, headers });
-      if (!res.ok) throw new Error(await res.text());
-      return res.json();
-    }
-
-    async function loadAll() {
-      document.getElementById('sub-title').textContent = 'Refreshing data from all VPS...';
-      try {
-        state = await api('/api/overview');
-        renderAll();
-      } catch (err) {
-        document.getElementById('sub-title').textContent = 'Error: ' + err.message;
-      }
-    }
-
-    function showPage(page) {
-      currentPage = page;
-      document.querySelectorAll('.page').forEach(el => el.classList.add('hidden'));
-      document.getElementById(page).classList.remove('hidden');
-      const titles = { overview: 'Overview', nodes: 'VPS Nodes', ranking: 'Ranking Harian', daily: 'Daily Report', weekly: 'Weekly Report' };
-      document.getElementById('page-title').textContent = titles[page];
-      renderAll();
-    }
-
-    function renderAll() {
-      if (!state) return;
-      document.getElementById('sub-title').textContent = `Last update: ${state.generated_at} | Date: ${state.date}`;
-      renderOverview(); renderNodes(); renderRanking(); renderDaily(); renderWeekly();
-    }
-
-    function statsHtml() {
-      const t = state.totals || {};
-      const stats = [
-        ['Total VPS', state.total_vps], ['Running', state.running], ['Down', state.down],
-        ['Task Unik', t.assignments], ['Submit', t.submitted], ['Gagal Final', t.failed],
-        ['Pending', t.pending], ['Retry', t.retried], ['Total Akun', state.account_total]
-      ];
-      return `<div class="stats">${stats.map(([label, value]) => `<div class="stat"><div class="label">${label}</div><div class="value">${rup(value)}</div></div>`).join('')}</div>`;
-    }
-
-    function nodeCard(node) {
-      const status = node.status === 'running' ? 'running' : 'down';
-      return `<div class="card">
-        <div class="card-head">
-          <div><h3>${node.name}</h3><div class="host">${node.host || '-'}</div></div>
-          <span class="badge ${status}">${status === 'running' ? '✅ Running' : '❌ Down'}</span>
-        </div>
-        <div class="metrics">
-          <div class="metric"><span>Task</span><b>${metric(node, 'assignments')}</b></div>
-          <div class="metric"><span>Submit</span><b>${metric(node, 'submitted')}</b></div>
-          <div class="metric"><span>Gagal</span><b>${metric(node, 'failed')}</b></div>
-          <div class="metric"><span>Pending</span><b>${metric(node, 'pending')}</b></div>
-          <div class="metric"><span>Retry</span><b>${metric(node, 'retried')}</b></div>
-          <div class="metric"><span>Success</span><b>${node.success_rate || 0}%</b></div>
-        </div>
-        <div class="card-actions">
-          <button class="btn small secondary" onclick="detail('${node.name}')">Detail</button>
-          <button class="btn small danger" onclick="restartNode('${node.name}')">Restart</button>
-          <button class="btn small secondary" onclick="logs('${node.name}')">Logs</button>
-        </div>
-      </div>`;
-    }
-
-    function renderOverview() {
-      const top = (state.top_nodes || []).map((n, i) => `<tr><td>${i + 1}</td><td>${n.name}</td><td>${metric(n, 'submitted')}</td><td>${metric(n, 'assignments')}</td><td>${n.success_rate || 0}%</td></tr>`).join('');
-      document.getElementById('overview').innerHTML = `${statsHtml()}<div class="panel"><h3>🏆 Top 5 Hari Ini</h3><table><thead><tr><th>#</th><th>Node</th><th>Submit</th><th>Task</th><th>Success</th></tr></thead><tbody>${top}</tbody></table></div><div class="grid">${state.nodes.map(nodeCard).join('')}</div>`;
-    }
-
+    async function api(path, opts = {}) { const headers = opts.headers || {}; if (token()) headers['X-Dashboard-Token'] = token(); const res = await fetch(path, { ...opts, headers }); if (!res.ok) throw new Error(await res.text()); return res.json(); }
+    async function loadAll() { document.getElementById('sub-title').textContent = 'Refreshing data from all VPS...'; try { state = await api('/api/overview'); renderAll(); } catch (err) { document.getElementById('sub-title').textContent = 'Error: ' + err.message; } }
+    function showPage(page) { currentPage = page; document.querySelectorAll('.page').forEach(el => el.classList.add('hidden')); document.getElementById(page).classList.remove('hidden'); const titles = { overview:'Overview', nodes:'VPS Nodes', ranking:'Ranking Harian', daily:'Daily Report', weekly:'Weekly Report' }; document.getElementById('page-title').textContent = titles[page]; renderAll(); }
+    function renderAll() { if (!state) return; document.getElementById('sub-title').textContent = `Last update: ${state.generated_at} | Date: ${state.date}`; renderOverview(); renderNodes(); renderRanking(); renderDaily(); renderWeekly(); }
+    function statsHtml() { const t = state.totals || {}; const stats = [['Total VPS',state.total_vps],['Running',state.running],['Down',state.down],['Task Unik',t.assignments],['Submit',t.submitted],['Gagal Final',t.failed],['Pending',t.pending],['Retry',t.retried],['Total Akun',state.account_total]]; return `<div class="stats">${stats.map(([label,value]) => `<div class="stat"><div class="label">${label}</div><div class="value">${rup(value)}</div></div>`).join('')}</div>`; }
+    function nodeCard(node) { const status = node.status === 'running' ? 'running' : 'down'; return `<div class="card"><div class="card-head"><div><h3>${node.name}</h3><div class="host">${node.host || '-'}</div></div><span class="badge ${status}">${status === 'running' ? '✅ Running' : '❌ Down'}</span></div><div class="metrics"><div class="metric"><span>Task</span><b>${metric(node,'assignments')}</b></div><div class="metric"><span>Submit</span><b>${metric(node,'submitted')}</b></div><div class="metric"><span>Gagal</span><b>${metric(node,'failed')}</b></div><div class="metric"><span>Pending</span><b>${metric(node,'pending')}</b></div><div class="metric"><span>Retry</span><b>${metric(node,'retried')}</b></div><div class="metric"><span>Success</span><b>${node.success_rate || 0}%</b></div></div><div class="card-actions"><button class="btn small secondary" onclick="detail('${node.name}')">Detail</button><button class="btn small danger" onclick="restartNode('${node.name}')">Restart</button><button class="btn small secondary" onclick="logs('${node.name}')">Logs</button></div></div>`; }
+    function renderOverview() { const top = (state.top_nodes || []).map((n,i) => `<tr><td>${i+1}</td><td>${n.name}</td><td>${metric(n,'submitted')}</td><td>${metric(n,'assignments')}</td><td>${n.success_rate || 0}%</td></tr>`).join(''); document.getElementById('overview').innerHTML = `${statsHtml()}<div class="panel"><h3>🏆 Top 5 Hari Ini</h3><table><thead><tr><th>#</th><th>Node</th><th>Submit</th><th>Task</th><th>Success</th></tr></thead><tbody>${top}</tbody></table></div><div class="grid">${state.nodes.map(nodeCard).join('')}</div>`; }
     function renderNodes() { document.getElementById('nodes').innerHTML = `<div class="grid">${state.nodes.map(nodeCard).join('')}</div>`; }
-
-    function renderRanking() {
-      const rows = [...state.nodes].sort((a,b) => metric(b, 'submitted') - metric(a, 'submitted')).map((n, i) => `<tr><td>${i + 1}</td><td>${n.name}</td><td>${n.status}</td><td>${metric(n, 'submitted')}</td><td>${metric(n, 'assignments')}</td><td>${metric(n, 'failed')}</td><td>${n.success_rate || 0}%</td></tr>`).join('');
-      document.getElementById('ranking').innerHTML = `<div class="panel"><table><thead><tr><th>#</th><th>Node</th><th>Status</th><th>Submit</th><th>Task</th><th>Gagal</th><th>Success</th></tr></thead><tbody>${rows}</tbody></table></div>`;
-    }
-
-    async function renderDaily() {
-      if (currentPage !== 'daily') return;
-      const data = await api('/api/history/daily');
-      const rows = (data.days || []).map(([date, d]) => `<tr><td>${date}</td><td>${d.totals.assignments || 0}</td><td>${d.totals.submitted || 0}</td><td>${d.totals.failed || 0}</td><td>${d.totals.pending || 0}</td><td>${d.account_total || '-'}</td></tr>`).join('');
-      document.getElementById('daily').innerHTML = `<div class="panel"><table><thead><tr><th>Tanggal</th><th>Task</th><th>Submit</th><th>Gagal</th><th>Pending</th><th>Total Akun</th></tr></thead><tbody>${rows}</tbody></table></div>`;
-    }
-
-    async function renderWeekly() {
-      if (currentPage !== 'weekly') return;
-      const data = await api('/api/history/weekly');
-      const t = data.totals || {};
-      const rows = Object.entries(data.nodes || {}).sort((a,b) => (b[1].submitted || 0) - (a[1].submitted || 0)).map(([name, m], i) => `<tr><td>${i + 1}</td><td>${name}</td><td>${m.assignments || 0}</td><td>${m.submitted || 0}</td><td>${m.failed || 0}</td><td>${m.pending || 0}</td></tr>`).join('');
-      document.getElementById('weekly').innerHTML = `<div class="panel"><h3>7 Hari: Task ${t.assignments || 0} | Submit ${t.submitted || 0} | Gagal ${t.failed || 0}</h3><table><thead><tr><th>#</th><th>Node</th><th>Task</th><th>Submit</th><th>Gagal</th><th>Pending</th></tr></thead><tbody>${rows}</tbody></table></div>`;
-    }
-
-    async function detail(name) {
-      showModal('Loading detail...', '');
-      const node = await api('/api/vps/' + encodeURIComponent(name));
-      document.getElementById('modal-title').textContent = '🔎 Detail ' + name;
-      document.getElementById('modal-sub').textContent = node.host || '';
-      document.getElementById('modal-content').innerHTML = `<div class="grid">${nodeCard(node)}</div><pre>${JSON.stringify(node.system || {}, null, 2)}</pre>`;
-    }
-
-    async function logs(name) {
-      showModal('Loading logs...', '');
-      const data = await api('/api/vps/' + encodeURIComponent(name) + '/logs');
-      document.getElementById('modal-title').textContent = '📜 Logs ' + name;
-      document.getElementById('modal-content').innerHTML = `<pre>${escapeHtml(data.logs || 'No logs')}</pre>`;
-    }
-
-    async function restartNode(name) {
-      if (!confirm('Yakin restart ' + name + '?')) return;
-      showModal('Restarting ' + name + '...', '');
-      try {
-        const res = await api('/api/vps/' + encodeURIComponent(name) + '/restart', { method: 'POST' });
-        document.getElementById('modal-title').textContent = '✅ Restart selesai';
-        document.getElementById('modal-content').innerHTML = `<pre>${JSON.stringify(res, null, 2)}</pre>`;
-        await loadAll();
-      } catch (err) {
-        document.getElementById('modal-title').textContent = '❌ Restart gagal';
-        document.getElementById('modal-content').innerHTML = `<pre>${escapeHtml(err.message)}</pre>`;
-      }
-    }
-
-    function showModal(title, sub) { document.getElementById('modal-title').textContent = title; document.getElementById('modal-sub').textContent = sub || ''; document.getElementById('modal-content').innerHTML = ''; document.getElementById('modal').classList.add('show'); }
+    function renderRanking() { const rows = [...state.nodes].sort((a,b) => metric(b,'submitted') - metric(a,'submitted')).map((n,i) => `<tr><td>${i+1}</td><td>${n.name}</td><td>${n.status}</td><td>${metric(n,'submitted')}</td><td>${metric(n,'assignments')}</td><td>${metric(n,'failed')}</td><td>${n.success_rate || 0}%</td></tr>`).join(''); document.getElementById('ranking').innerHTML = `<div class="panel"><table><thead><tr><th>#</th><th>Node</th><th>Status</th><th>Submit</th><th>Task</th><th>Gagal</th><th>Success</th></tr></thead><tbody>${rows}</tbody></table></div>`; }
+    async function renderDaily() { if (currentPage !== 'daily') return; const data = await api('/api/history/daily'); const rows = (data.days || []).map(([date,d]) => `<tr><td>${date}</td><td>${d.totals.assignments || 0}</td><td>${d.totals.submitted || 0}</td><td>${d.totals.failed || 0}</td><td>${d.totals.pending || 0}</td><td>${d.account_total || '-'}</td></tr>`).join(''); document.getElementById('daily').innerHTML = `<div class="panel"><table><thead><tr><th>Tanggal</th><th>Task</th><th>Submit</th><th>Gagal</th><th>Pending</th><th>Total Akun</th></tr></thead><tbody>${rows}</tbody></table></div>`; }
+    async function renderWeekly() { if (currentPage !== 'weekly') return; const data = await api('/api/history/weekly'); const t = data.totals || {}; const rows = Object.entries(data.nodes || {}).sort((a,b) => (b[1].submitted || 0) - (a[1].submitted || 0)).map(([name,m],i) => `<tr><td>${i+1}</td><td>${name}</td><td>${m.assignments || 0}</td><td>${m.submitted || 0}</td><td>${m.failed || 0}</td><td>${m.pending || 0}</td></tr>`).join(''); document.getElementById('weekly').innerHTML = `<div class="panel"><h3>7 Hari: Task ${t.assignments || 0} | Submit ${t.submitted || 0} | Gagal ${t.failed || 0}</h3><table><thead><tr><th>#</th><th>Node</th><th>Task</th><th>Submit</th><th>Gagal</th><th>Pending</th></tr></thead><tbody>${rows}</tbody></table></div>`; }
+    async function detail(name) { showModal('Loading detail...',''); const node = await api('/api/vps/' + encodeURIComponent(name)); document.getElementById('modal-title').textContent = '🔎 Detail ' + name; document.getElementById('modal-sub').textContent = node.host || ''; document.getElementById('modal-content').innerHTML = `<div class="grid">${nodeCard(node)}</div><pre>${JSON.stringify(node.system || {}, null, 2)}</pre>`; }
+    async function logs(name) { showModal('Loading logs...',''); const data = await api('/api/vps/' + encodeURIComponent(name) + '/logs'); document.getElementById('modal-title').textContent = '📜 Logs ' + name; document.getElementById('modal-content').innerHTML = `<pre>${escapeHtml(data.logs || 'No logs')}</pre>`; }
+    async function restartNode(name) { if (!confirm('Yakin restart ' + name + '?')) return; showModal('Restarting ' + name + '...',''); try { const res = await api('/api/vps/' + encodeURIComponent(name) + '/restart', { method:'POST' }); document.getElementById('modal-title').textContent = '✅ Restart selesai'; document.getElementById('modal-content').innerHTML = `<pre>${JSON.stringify(res,null,2)}</pre>`; await loadAll(); } catch (err) { document.getElementById('modal-title').textContent = '❌ Restart gagal'; document.getElementById('modal-content').innerHTML = `<pre>${escapeHtml(err.message)}</pre>`; } }
+    function showModal(title,sub) { document.getElementById('modal-title').textContent = title; document.getElementById('modal-sub').textContent = sub || ''; document.getElementById('modal-content').innerHTML = ''; document.getElementById('modal').classList.add('show'); }
     function hideModal() { document.getElementById('modal').classList.remove('show'); }
     function closeModal(e) { if (e.target.id === 'modal') hideModal(); }
     function escapeHtml(text) { return String(text).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
-
-    loadAll();
-    setInterval(loadAll, 120000);
+    loadAll(); setInterval(loadAll, 120000);
   </script>
 </body>
 </html>
