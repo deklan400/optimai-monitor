@@ -11,7 +11,7 @@
     body { margin:0; font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:var(--text); background:radial-gradient(circle at top left,#172554 0,transparent 32%),var(--bg); }
     .app { min-height:100vh; display:block; padding-left:260px; transition:padding-left .22s ease; }
     body.sidebar-collapsed .app { padding-left:84px; }
-    .sidebar { position:fixed; left:0; top:0; bottom:0; width:260px; height:100vh; padding:20px 14px; background:rgba(13,20,37,.94); border-right:1px solid var(--line); z-index:10; overflow:visible; transition:width .22s ease; }
+    .sidebar { position:fixed; left:0; top:0; bottom:0; width:260px; height:100vh; padding:20px 14px 88px; background:rgba(13,20,37,.94); border-right:1px solid var(--line); z-index:10; overflow:visible; transition:width .22s ease; }
     body.sidebar-collapsed .sidebar { width:84px; }
     .brand { display:flex; align-items:center; gap:12px; padding:10px; margin-bottom:16px; min-height:62px; overflow:hidden; }
     .logo { width:42px; height:42px; border-radius:14px; display:grid; place-items:center; background:linear-gradient(135deg,#38bdf8,#8b5cf6); font-weight:900; color:#fff; flex:0 0 auto; }
@@ -30,6 +30,12 @@
     body.sidebar-collapsed .nav button { justify-content:center; padding:13px 0; gap:0; }
     body.sidebar-collapsed .nav-label { opacity:0; width:0; overflow:hidden; transform:translateX(-8px); }
     body.sidebar-collapsed .nav-icon { font-size:18px; }
+    .sidebar-footer { position:absolute; left:14px; right:14px; bottom:18px; }
+    .logout-btn { width:100%; border:1px solid rgba(248,113,113,.28); background:rgba(220,38,38,.13); color:#fecaca; border-radius:14px; padding:12px 13px; font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px; overflow:hidden; white-space:nowrap; }
+    .logout-btn:hover { background:rgba(220,38,38,.22); color:white; }
+    .logout-icon { flex:0 0 22px; text-align:center; }
+    .logout-label { transition:opacity .16s ease, transform .16s ease; }
+    body.sidebar-collapsed .logout-label { opacity:0; width:0; overflow:hidden; transform:translateX(-8px); }
     .main { min-width:0; width:100%; padding:24px; max-width:1600px; margin:0 auto; }
     .topbar { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:22px; }
     .topbar h2 { margin:0; font-size:clamp(22px,3vw,30px); }
@@ -77,7 +83,7 @@
     .modal.show { display:flex; }
     .modal-box { width:min(680px,100%); max-height:86vh; overflow:auto; background:#0f172a; border:1px solid var(--line); border-radius:20px; padding:20px; }
     pre { background:#020617; padding:14px; border-radius:14px; overflow:auto; color:#dbeafe; border:1px solid var(--line); white-space:pre-wrap; }
-    @media (max-width:1050px) { .app,.app.sidebar-collapsed { display:block; padding-left:0; } body.sidebar-collapsed .app{padding-left:0}.sidebar{position:sticky;top:0;height:auto;width:100%;padding:10px 12px 12px;border-right:0;border-bottom:1px solid var(--line);backdrop-filter:blur(14px);overflow:hidden}body.sidebar-collapsed .sidebar{width:100%}.brand{margin:0 0 8px;padding:4px 6px;min-height:auto}.brand-text{opacity:1!important;width:auto!important;transform:none!important}.logo{width:36px;height:36px;border-radius:12px}.brand h1{font-size:16px}.brand p{display:none}.sidebar-toggle{display:none}.nav{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px}.nav button{width:auto;flex:0 0 auto;padding:10px 12px;text-align:center;margin:0;background:rgba(15,23,42,.55)}.nav-label{opacity:1!important;width:auto!important;transform:none!important}.main{padding:18px 14px 28px} }
+    @media (max-width:1050px) { .app,.app.sidebar-collapsed { display:block; padding-left:0; } body.sidebar-collapsed .app{padding-left:0}.sidebar{position:sticky;top:0;height:auto;width:100%;padding:10px 12px 12px;border-right:0;border-bottom:1px solid var(--line);backdrop-filter:blur(14px);overflow:hidden}body.sidebar-collapsed .sidebar{width:100%}.brand{margin:0 0 8px;padding:4px 6px;min-height:auto}.brand-text{opacity:1!important;width:auto!important;transform:none!important}.logo{width:36px;height:36px;border-radius:12px}.brand h1{font-size:16px}.brand p{display:none}.sidebar-toggle{display:none}.sidebar-footer{display:none}.nav{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px}.nav button{width:auto;flex:0 0 auto;padding:10px 12px;text-align:center;margin:0;background:rgba(15,23,42,.55)}.nav-label{opacity:1!important;width:auto!important;transform:none!important}.main{padding:18px 14px 28px} }
     @media (max-width:720px) { .topbar{display:grid;grid-template-columns:1fr;gap:12px;margin-bottom:16px}.actions{justify-content:stretch}.token-input{flex:1 1 180px;width:auto;min-width:0}.stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.grid{grid-template-columns:1fr;gap:12px}.card{padding:14px}.panel{padding:14px;border-radius:16px} }
     @media (max-width:430px) { .main{padding:14px 10px 24px}.stats{grid-template-columns:1fr}.metrics{grid-template-columns:1fr}.card-head{display:grid;gap:8px}.btn.small{flex:1 1 90px}.modal{padding:10px}.modal-box{padding:14px;border-radius:16px} }
   </style>
@@ -95,6 +101,7 @@
         <button data-page="daily"><span class="nav-icon">📅</span><span class="nav-label">Daily Report</span></button>
         <button data-page="weekly"><span class="nav-icon">📈</span><span class="nav-label">Weekly Report</span></button>
       </div>
+      <div class="sidebar-footer"><button class="logout-btn" onclick="logout()"><span class="logout-icon">🚪</span><span class="logout-label">Keluar</span></button></div>
     </aside>
     <main class="main">
       <div class="topbar"><div><h2 id="page-title">Overview</h2><p id="sub-title">Loading data...</p></div><div class="actions"><input id="token" class="token-input" type="password" placeholder="Dashboard token" /><button class="btn secondary" onclick="loadAll()">Refresh</button></div></div>
@@ -113,7 +120,7 @@
     applySidebarState();
     document.getElementById('token').addEventListener('change', (e) => localStorage.setItem('dashboardToken', e.target.value)); document.getElementById('token').value = localStorage.getItem('dashboardToken') || '';
     document.querySelectorAll('.nav button').forEach(btn => { btn.addEventListener('click', () => { document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active')); btn.classList.add('active'); showPage(btn.dataset.page); }); });
-    async function api(path, opts = {}) { const headers = opts.headers || {}; if (token()) headers['X-Dashboard-Token'] = token(); const res = await fetch(path, { ...opts, headers }); if (!res.ok) { let msg = await res.text(); try { msg = JSON.parse(msg).detail || msg; } catch(e) {} throw new Error(msg); } return res.json(); }
+    async function api(path, opts = {}) { const headers = opts.headers || {}; if (token()) headers['X-Dashboard-Token'] = token(); const res = await fetch(path, { ...opts, headers }); if (res.status === 401) { window.location.href = '/login'; throw new Error('Login required'); } if (!res.ok) { let msg = await res.text(); try { msg = JSON.parse(msg).detail || msg; } catch(e) {} throw new Error(msg); } return res.json(); }
     async function loadAll() { document.getElementById('sub-title').textContent = 'Refreshing data from all VPS...'; try { state = await api('/api/overview'); renderAll(); } catch (err) { document.getElementById('sub-title').textContent = 'Error: ' + err.message; } }
     function showPage(page) { currentPage = page; document.querySelectorAll('.page').forEach(el => el.classList.add('hidden')); document.getElementById(page).classList.remove('hidden'); const titles = { overview:'Overview', nodes:'VPS Nodes', manage:'Kelola VPS', ranking:'Ranking Harian', daily:'Daily Report', weekly:'Weekly Report' }; document.getElementById('page-title').textContent = titles[page]; renderAll(); }
     function renderAll() { if (!state) return; document.getElementById('sub-title').textContent = `Last update: ${state.generated_at} | Date: ${state.date}`; renderOverview(); renderNodes(); renderManage(); renderRanking(); renderDaily(); renderWeekly(); }
@@ -131,6 +138,7 @@
     async function detail(name) { showModal('Loading detail...',''); const node = await api('/api/vps/' + encodeURIComponent(name)); document.getElementById('modal-title').textContent = '🔎 Detail ' + name; document.getElementById('modal-sub').textContent = node.host || ''; document.getElementById('modal-content').innerHTML = `<div class="grid">${nodeCard(node)}</div><pre>${JSON.stringify(node.system || {}, null, 2)}</pre>`; }
     async function logs(name) { showModal('Loading logs...',''); const data = await api('/api/vps/' + encodeURIComponent(name) + '/logs'); document.getElementById('modal-title').textContent = '📜 Logs ' + name; document.getElementById('modal-content').innerHTML = `<pre>${escapeHtml(data.logs || 'No logs')}</pre>`; }
     async function restartNode(name) { if (!confirm('Yakin restart ' + name + '?')) return; showModal('Restarting ' + name + '...',''); try { const res = await api('/api/vps/' + encodeURIComponent(name) + '/restart', { method:'POST' }); document.getElementById('modal-title').textContent = '✅ Restart selesai'; document.getElementById('modal-content').innerHTML = `<pre>${JSON.stringify(res,null,2)}</pre>`; await loadAll(); } catch (err) { document.getElementById('modal-title').textContent = '❌ Restart gagal'; document.getElementById('modal-content').innerHTML = `<pre>${escapeHtml(err.message)}</pre>`; } }
+    async function logout() { if (!confirm('Keluar dari dashboard?')) return; try { await fetch('/api/logout', { method:'POST' }); } catch(e) {} localStorage.removeItem('dashboardToken'); window.location.href = '/login'; }
     function showModal(title,sub) { document.getElementById('modal-title').textContent = title; document.getElementById('modal-sub').textContent = sub || ''; document.getElementById('modal-content').innerHTML = ''; document.getElementById('modal').classList.add('show'); }
     function hideModal() { document.getElementById('modal').classList.remove('show'); editingName = null; }
     function closeModal(e) { if (e.target.id === 'modal') hideModal(); }
