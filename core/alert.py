@@ -1,3 +1,10 @@
+def _clean_reason(reason):
+    reason = (reason or "").strip()
+    if not reason:
+        return "Belum terdeteksi. Cek detail/log VPS."
+    return reason[:700]
+
+
 def check_status_change(current_data, last_state):
     alerts = []
     new_state = {}
@@ -20,6 +27,7 @@ def check_status_change(current_data, last_state):
             if status == "running":
                 alerts.append(f"✅ {name} : RUNNING KEMBALI")
             else:
-                alerts.append(f"⚠️ {name} : ❌ DOWN")
+                reason = _clean_reason(item.get("down_reason"))
+                alerts.append(f"⚠️ {name} : ❌ DOWN\nPenyebab: {reason}")
 
     return alerts, new_state
