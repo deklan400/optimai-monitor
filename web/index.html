@@ -15,8 +15,8 @@
 
     .app { min-height:100vh; display:grid; grid-template-columns:260px minmax(0,1fr); transition:grid-template-columns .22s ease; }
     body.sidebar-collapsed .app { grid-template-columns:84px minmax(0,1fr); }
-    .sidebar { position:sticky; top:0; height:100vh; padding:20px 14px; background:rgba(13,20,37,.94); border-right:1px solid var(--line); z-index:10; overflow:hidden; }
-    .brand { display:flex; align-items:center; gap:12px; padding:10px; margin-bottom:16px; min-height:62px; }
+    .sidebar { position:sticky; top:0; height:100vh; padding:20px 14px; background:rgba(13,20,37,.94); border-right:1px solid var(--line); z-index:10; overflow:visible; }
+    .brand { display:flex; align-items:center; gap:12px; padding:10px; margin-bottom:16px; min-height:62px; overflow:hidden; }
     .logo { width:42px; height:42px; border-radius:14px; display:grid; place-items:center; background:linear-gradient(135deg,#38bdf8,#8b5cf6); font-weight:900; color:#fff; flex:0 0 auto; }
     .brand-text { min-width:0; white-space:nowrap; transition:opacity .18s ease, transform .18s ease; }
     .brand h1 { margin:0; font-size:17px; line-height:1.1; }
@@ -24,11 +24,11 @@
     body.sidebar-collapsed .brand { justify-content:center; padding:10px 0; }
     body.sidebar-collapsed .brand-text { opacity:0; width:0; overflow:hidden; transform:translateX(-8px); }
 
-    .sidebar-toggle { width:100%; border:1px solid var(--line); color:var(--text); background:rgba(56,189,248,.10); border-radius:14px; padding:10px 12px; margin-bottom:16px; cursor:pointer; font-weight:900; display:flex; align-items:center; justify-content:center; gap:8px; }
-    .toggle-text { white-space:nowrap; }
-    body.sidebar-collapsed .toggle-text { display:none; }
+    .sidebar-toggle { position:absolute; top:18px; right:-15px; width:30px; height:30px; border:1px solid rgba(148,163,184,.32); color:#334155; background:#e5e7eb; border-radius:10px; padding:0; margin:0; cursor:pointer; font-weight:900; display:grid; place-items:center; z-index:40; box-shadow:0 8px 24px rgba(0,0,0,.25); font-size:14px; line-height:1; }
+    .sidebar-toggle:hover { background:#f8fafc; color:#0f172a; }
+    .toggle-text { display:none; }
 
-    .nav { display:grid; gap:8px; }
+    .nav { display:grid; gap:8px; overflow:hidden; }
     .nav button { width:100%; border:0; color:var(--muted); background:transparent; border-radius:12px; padding:12px 13px; text-align:left; font-weight:800; cursor:pointer; white-space:nowrap; display:flex; align-items:center; gap:10px; overflow:hidden; }
     .nav button:hover,.nav button.active { color:var(--text); background:rgba(56,189,248,.14); }
     .nav-icon { width:22px; flex:0 0 22px; text-align:center; font-size:16px; }
@@ -80,7 +80,7 @@
     @media (max-width:1050px) {
       .app { display:block; }
       body.sidebar-collapsed .app { display:block; }
-      .sidebar { position:sticky; top:0; height:auto; width:100%; padding:10px 12px 12px; border-right:0; border-bottom:1px solid var(--line); backdrop-filter:blur(14px); }
+      .sidebar { position:sticky; top:0; height:auto; width:100%; padding:10px 12px 12px; border-right:0; border-bottom:1px solid var(--line); backdrop-filter:blur(14px); overflow:hidden; }
       .brand { margin:0 0 8px; padding:4px 6px; min-height:auto; }
       .brand-text { opacity:1!important; width:auto!important; transform:none!important; }
       .logo { width:36px; height:36px; border-radius:12px; }
@@ -98,8 +98,8 @@
 <body>
   <div class="app">
     <aside class="sidebar">
+      <button class="sidebar-toggle" onclick="toggleSidebar()" title="Tutup sidebar" aria-label="Tutup sidebar"><span id="toggle-icon">◀</span></button>
       <div class="brand"><div class="logo">O</div><div class="brand-text"><h1>OptimAI Control</h1><p>Node dashboard</p></div></div>
-      <button class="sidebar-toggle" onclick="toggleSidebar()"><span id="toggle-icon">⬅️</span><span class="toggle-text">Kecilkan</span></button>
       <div class="nav">
         <button class="active" data-page="overview"><span class="nav-icon">🏠</span><span class="nav-label">Overview</span></button>
         <button data-page="nodes"><span class="nav-icon">🖥</span><span class="nav-label">VPS Nodes</span></button>
@@ -120,7 +120,7 @@
     const metric = (node, key) => Number((node.metrics || {})[key] || 0);
     const token = () => document.getElementById('token').value || localStorage.getItem('dashboardToken') || '';
 
-    function applySidebarState() { const collapsed = localStorage.getItem('sidebarCollapsed') === '1'; document.body.classList.toggle('sidebar-collapsed', collapsed); document.getElementById('toggle-icon').textContent = collapsed ? '➡️' : '⬅️'; }
+    function applySidebarState() { const collapsed = localStorage.getItem('sidebarCollapsed') === '1'; document.body.classList.toggle('sidebar-collapsed', collapsed); const btn = document.querySelector('.sidebar-toggle'); document.getElementById('toggle-icon').textContent = collapsed ? '▶' : '◀'; btn.title = collapsed ? 'Buka sidebar' : 'Tutup sidebar'; btn.setAttribute('aria-label', btn.title); }
     function toggleSidebar() { const next = !(localStorage.getItem('sidebarCollapsed') === '1'); localStorage.setItem('sidebarCollapsed', next ? '1' : '0'); applySidebarState(); }
     applySidebarState();
 
