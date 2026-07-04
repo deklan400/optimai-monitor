@@ -42,17 +42,65 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 WEB_DIR = os.path.join(BASE_DIR, "web")
 VPS_NAME_RE = re.compile(r"^[a-zA-Z0-9_-]{1,32}$")
 
+UPDATE_CLI_COMMAND = """
+set -e
+TMP=$(mktemp)
+curl -fsSL https://optimai.network/download/cli-node/linux -o "$TMP"
+chmod +x "$TMP"
+mv "$TMP" /usr/local/bin/optimai-cli
+optimai-cli --version 2>/dev/null || echo "optimai-cli updated"
+"""
+
+AUTO_HEAL_COMMAND = r'''
+DOCKER_STATUS=$(systemctl is-active docker 2>/dev/null || true)
+if [ "$DOCKER_STATUS" != "active" ]; then
+  systemctl start docker 2>/dev/null || true
+fi
+
+STATUS=$(systemctl is-active optimai 2>/dev/null || true)
+if [ "$STATUS" != "active" ]; then
+  systemctl restart optimai 2>/dev/null || true
+  sleep 2
+  echo "action=restart_down"
+  echo "optimai=$(systemctl is-active optimai 2>/dev/null || true)"
+  echo "docker=$(systemctl is-active docker 2>/dev/null || true)"
+  exit 0
+fi
+
+LAST_TS=$(journalctl -u optimai --since "24 hours ago" --no-pager -o short-unix 2>/dev/null | grep -Ei 'assignment .* submitted successfully|fetched [1-9][0-9]* actionable assignments' | tail -1 | awk '{print $1}' | cut -d. -f1)
+NOW_TS=$(date +%s)
+if [ -z "$LAST_TS" ]; then
+  AGE=999999
+else
+  AGE=$((NOW_TS - LAST_TS))
+fi
+
+if [ "$AGE" -ge 21600 ]; then
+  systemctl restart optimai 2>/dev/null || true
+  sleep 2
+  echo "action=restart_stale"
+else
+  echo "action=healthy"
+fi
+
+echo "age_seconds=$AGE"
+echo "optimai=$(systemctl is-active optimai 2>/dev/null || true)"
+echo "docker=$(systemctl is-active docker 2>/dev/null || true)"
+'''
+
 NODE_COMMANDS = {
     "restart": "systemctl restart optimai && sleep 2 && systemctl is-active optimai",
     "start": "systemctl start optimai && sleep 2 && systemctl is-active optimai",
     "stop": "systemctl stop optimai && sleep 1 && systemctl is-active optimai || true",
     "status": "systemctl status optimai --no-pager -l | tail -n 80",
     "reward": "optimai-cli rewards balance",
+    "update_cli": UPDATE_CLI_COMMAND,
+    "auto_heal": AUTO_HEAL_COMMAND,
 }
 
 MINI_COMMANDS = {
-    "status": "systemctl status optimai --no-pager -l | tail -n 80",
-    "reward": "optimai-cli rewards balance",
+    "status": NODE_COMMANDS["status"],
+    "reward": NODE_COMMANDS["reward"],
     "ram": "free -h",
     "disk": "df -h /",
     "docker": "docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' | head -n 60",
@@ -85,6 +133,7 @@ class MiniCommandPayload(BaseModel):
 
 class GlobalActionPayload(BaseModel):
     action: str
+    names: list[str] | None = None
 
 
 def _natural_key(value):
@@ -168,11 +217,6 @@ def _setup_key_if_password(host, password):
     return {"ssh_key_setup": "ok", "message": detail}
 
 
-def _notify_telegram(text):
-    """Dashboard action notifications are disabled; Telegram keeps only normal bot reports/alerts."""
-    return None
-
-
 def _success_rate(metrics):
     task = int((metrics or {}).get("assignments", 0) or 0)
     submit = int((metrics or {}).get("submitted", 0) or 0)
@@ -234,7 +278,19 @@ def _load_current(include_details=False):
     return vps_dict, current, nodes, totals, account_total, source_node
 
 
-def _run_node_command(name, command, timeout=35):
+def _selected_vps(names=None):
+    vps_dict = load_vps()
+    if names:
+        selected = {}
+        for name in names:
+            clean = _validate_vps_name(name)
+            if clean in vps_dict:
+                selected[clean] = vps_dict[clean]
+        return selected
+    return vps_dict
+
+
+def _run_node_command(name, command, timeout=45):
     vps_dict = load_vps()
     host = vps_dict.get(name)
     if not host:
@@ -287,7 +343,7 @@ def overview(opt_session: str | None = Cookie(default=None)):
     _, _, nodes, totals, account_total, source_node = _load_current(include_details=True)
     running = sum(1 for node in nodes if node.get("status") == "running")
     down = len(nodes) - running
-    stale = sum(1 for node in nodes if node.get("stale", {}).get("level") in {"warning", "danger", "unknown"})
+    warning_count = sum(1 for node in nodes if node.get("stale", {}).get("level") in {"warning", "danger", "unknown"})
     ranking = sorted(nodes, key=lambda node: (-int((node.get("metrics") or {}).get("submitted", 0) or 0), _natural_key(node.get("name") or "")))[:5]
     return {
         "generated_at": datetime.now().isoformat(timespec="seconds"),
@@ -295,7 +351,8 @@ def overview(opt_session: str | None = Cookie(default=None)):
         "total_vps": len(nodes),
         "running": running,
         "down": down,
-        "stale": stale,
+        "stale": warning_count,
+        "warning_count": warning_count + down,
         "totals": totals,
         "account_total": account_total,
         "source_node": source_node,
@@ -321,7 +378,6 @@ def create_vps(payload: VpsPayload, opt_session: str | None = Cookie(default=Non
         raise HTTPException(status_code=409, detail="Nama VPS sudah ada.")
     setup_result = _setup_key_if_password(host, payload.password)
     add_vps(name, host)
-    _notify_telegram("dashboard vps created")
     return {"ok": True, "action": "created", "name": name, "host": host, **setup_result}
 
 
@@ -340,7 +396,6 @@ def edit_vps(old_name: str, payload: VpsPayload, opt_session: str | None = Cooki
     data.pop(old_name, None)
     data[new_name] = host
     save_vps(data)
-    _notify_telegram("dashboard vps updated")
     return {"ok": True, "action": "updated", "old_name": old_name, "name": new_name, "host": host, **setup_result}
 
 
@@ -354,7 +409,6 @@ def remove_vps(name: str, opt_session: str | None = Cookie(default=None)):
         raise HTTPException(status_code=404, detail="VPS tidak ditemukan.")
     if not delete_vps(name):
         raise HTTPException(status_code=404, detail="VPS tidak ditemukan.")
-    _notify_telegram("dashboard vps deleted")
     return {"ok": True, "action": "deleted", "name": name, "host": host}
 
 
@@ -382,7 +436,6 @@ def node_logs(name: str, opt_session: str | None = Cookie(default=None)):
 def restart_node(name: str, opt_session: str | None = Cookie(default=None)):
     _require_login(opt_session)
     result = _run_node_command(name, NODE_COMMANDS["restart"], timeout=35)
-    _notify_telegram("dashboard restart")
     clean = result["output"].strip()
     result["status"] = "running" if clean == "active" else clean
     return result
@@ -395,8 +448,7 @@ def node_action(name: str, payload: ActionPayload, opt_session: str | None = Coo
     command = NODE_COMMANDS.get(action)
     if not command:
         raise HTTPException(status_code=400, detail="Action tidak dikenali.")
-    result = _run_node_command(name, command, timeout=45)
-    _notify_telegram("dashboard node action")
+    result = _run_node_command(name, command, timeout=90 if action == "update_cli" else 45)
     result["action"] = action
     return result
 
@@ -422,16 +474,31 @@ def global_action(payload: GlobalActionPayload, opt_session: str | None = Cookie
         "reward_all": NODE_COMMANDS["reward"],
         "restart_all": NODE_COMMANDS["restart"],
         "start_all": NODE_COMMANDS["start"],
+        "stop_all": NODE_COMMANDS["stop"],
+        "update_cli_all": NODE_COMMANDS["update_cli"],
+        "auto_heal_all": NODE_COMMANDS["auto_heal"],
     }
     command = command_map.get(action)
     if not command:
         raise HTTPException(status_code=400, detail="Global command tidak dikenali.")
     results = []
-    for name, host in sorted(load_vps().items(), key=lambda item: _natural_key(item[0])):
-        output = run_ssh(host, command, timeout=45)
+    targets = _selected_vps(payload.names)
+    timeout = 90 if action == "update_cli_all" else 60
+    for name, host in sorted(targets.items(), key=lambda item: _natural_key(item[0])):
+        output = run_ssh(host, command, timeout=timeout)
         results.append({"name": name, "host": host, "ok": output is not None, "output": output or ""})
-    _notify_telegram("dashboard global action")
-    return {"action": action, "results": results}
+    return {"action": action, "target_count": len(targets), "results": results}
+
+
+@app.post("/api/auto-heal")
+def auto_heal(payload: GlobalActionPayload, opt_session: str | None = Cookie(default=None)):
+    _require_login(opt_session)
+    results = []
+    targets = _selected_vps(payload.names)
+    for name, host in sorted(targets.items(), key=lambda item: _natural_key(item[0])):
+        output = run_ssh(host, AUTO_HEAL_COMMAND, timeout=60)
+        results.append({"name": name, "host": host, "ok": output is not None, "output": output or ""})
+    return {"action": "auto_heal", "target_count": len(targets), "results": results}
 
 
 @app.get("/api/history/daily")
