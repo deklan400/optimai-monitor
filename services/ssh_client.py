@@ -103,7 +103,7 @@ def get_node_metrics(host, since_utc, until_utc=None):
 
 
 def get_node_system_detail(host):
-    """Ambil ringkasan sistem untuk menu Detail VPS."""
+    """Ambil ringkasan sistem untuk menu Detail VPS dan stale detector."""
     command = r'''
 STATUS=$(systemctl is-active optimai 2>/dev/null || true)
 ACTIVE=$(systemctl show optimai -p ActiveEnterTimestamp --value 2>/dev/null || true)
@@ -111,8 +111,15 @@ MEM=$(free -m | awk '/^Mem:/ {printf "%s/%s MB", $3, $2}')
 DISK=$(df -P / | awk 'NR==2 {print $5}')
 DOCKER=$(systemctl is-active docker 2>/dev/null || true)
 HOSTNAME_VALUE=$(hostname)
-LAST_TASK=$(journalctl -u optimai --since "24 hours ago" --no-pager -o cat 2>/dev/null | grep -Ei 'assignment .* submitted successfully|fetched [1-9][0-9]* actionable assignments' | tail -1)
-printf 'hostname=%s\nstatus=%s\nactive_since=%s\nmemory=%s\ndisk=%s\ndocker=%s\nlast_task=%s\n' "$HOSTNAME_VALUE" "$STATUS" "$ACTIVE" "$MEM" "$DISK" "$DOCKER" "$LAST_TASK"
+LAST_TASK_LINE=$(journalctl -u optimai --since "24 hours ago" --no-pager -o cat 2>/dev/null | grep -Ei 'assignment .* submitted successfully|fetched [1-9][0-9]* actionable assignments' | tail -1)
+LAST_TASK_TS=$(journalctl -u optimai --since "24 hours ago" --no-pager -o short-unix 2>/dev/null | grep -Ei 'assignment .* submitted successfully|fetched [1-9][0-9]* actionable assignments' | tail -1 | awk '{print $1}' | cut -d. -f1)
+NOW_TS=$(date +%s)
+if [ -n "$LAST_TASK_TS" ]; then
+  LAST_TASK_AGE=$((NOW_TS - LAST_TASK_TS))
+else
+  LAST_TASK_AGE=-1
+fi
+printf 'hostname=%s\nstatus=%s\nactive_since=%s\nmemory=%s\ndisk=%s\ndocker=%s\nlast_task_age_seconds=%s\nlast_task=%s\n' "$HOSTNAME_VALUE" "$STATUS" "$ACTIVE" "$MEM" "$DISK" "$DOCKER" "$LAST_TASK_AGE" "$LAST_TASK_LINE"
 '''
     output = run_ssh(host, command, timeout=25)
     if output is None:
