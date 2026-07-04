@@ -1,10 +1,13 @@
+import hashlib
+import hmac
 import os
 import re
+import time
 from datetime import datetime
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Header, HTTPException
-from fastapi.responses import FileResponse
+from fastapi import Cookie, FastAPI, Header, HTTPException, Request, Response
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -20,6 +23,16 @@ from services.telegram_bot import send_message
 load_dotenv()
 
 DASHBOARD_TOKEN = os.getenv("DASHBOARD_TOKEN", "").strip()
+DASHBOARD_URL = os.getenv("DASHBOARD_URL", "").strip()
+CHAT_ID = os.getenv("CHAT_ID", "").strip()
+ALLOWED_TELEGRAM_IDS = {
+    item.strip()
+    for item in os.getenv("DASHBOARD_ALLOWED_TELEGRAM_IDS", CHAT_ID).split(",")
+    if item.strip()
+}
+SESSION_SECRET = os.getenv("DASHBOARD_SESSION_SECRET", "").strip() or DASHBOARD_TOKEN or os.getenv("BOT_TOKEN", "") or "optimai-dashboard-session"
+SESSION_COOKIE = "optimai_session"
+SESSION_TTL = 60 * 60 * 24 * 7
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 WEB_DIR = os.path.join(BASE_DIR, "web")
 VPS_NAME_RE = re.compile(r"^[a-zA-Z0-9_-]{1,32}$")
@@ -28,15 +41,58 @@ app = FastAPI(title="OptimAI Control Dashboard")
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
 
 
+class LoginPayload(BaseModel):
+    telegram_id: str
+
+
 class VpsPayload(BaseModel):
     name: str
     host: str
     password: str | None = None
 
 
-def _require_token(x_dashboard_token: str | None = Header(default=None)):
-    if DASHBOARD_TOKEN and x_dashboard_token != DASHBOARD_TOKEN:
-        raise HTTPException(status_code=401, detail="Invalid dashboard token")
+def _sign_session(telegram_id: str, timestamp: int) -> str:
+    message = f"{telegram_id}:{timestamp}".encode()
+    return hmac.new(SESSION_SECRET.encode(), message, hashlib.sha256).hexdigest()
+
+
+def _make_session(telegram_id: str) -> str:
+    timestamp = int(time.time())
+    return f"{telegram_id}:{timestamp}:{_sign_session(telegram_id, timestamp)}"
+
+
+def _parse_session(session_value: str | None):
+    if not session_value:
+        return None
+
+    try:
+        telegram_id, raw_timestamp, signature = session_value.split(":", 2)
+        timestamp = int(raw_timestamp)
+    except (ValueError, TypeError):
+        return None
+
+    if int(time.time()) - timestamp > SESSION_TTL:
+        return None
+
+    expected = _sign_session(telegram_id, timestamp)
+    if not hmac.compare_digest(signature, expected):
+        return None
+
+    if telegram_id not in ALLOWED_TELEGRAM_IDS:
+        return None
+
+    return telegram_id
+
+
+def _require_login(opt_session: str | None = Cookie(default=None)):
+    telegram_id = _parse_session(opt_session)
+    if not telegram_id:
+        raise HTTPException(status_code=401, detail="Login required")
+    return telegram_id
+
+
+def _page_is_logged_in(request: Request) -> bool:
+    return bool(_parse_session(request.cookies.get(SESSION_COOKIE)))
 
 
 def _validate_vps_name(name):
@@ -119,12 +175,51 @@ def _load_current(include_details=False):
 
 
 @app.get("/")
-def index():
+def index(request: Request):
+    if not _page_is_logged_in(request):
+        return RedirectResponse("/login", status_code=302)
     return FileResponse(os.path.join(WEB_DIR, "index.html"))
 
 
+@app.get("/login")
+def login_page(request: Request):
+    if _page_is_logged_in(request):
+        return RedirectResponse("/", status_code=302)
+    return FileResponse(os.path.join(WEB_DIR, "login.html"))
+
+
+@app.post("/api/login")
+def login(payload: LoginPayload, response: Response):
+    telegram_id = str(payload.telegram_id).strip()
+    if telegram_id not in ALLOWED_TELEGRAM_IDS:
+        raise HTTPException(status_code=401, detail="Telegram ID tidak diizinkan.")
+
+    session_value = _make_session(telegram_id)
+    response.set_cookie(
+        key=SESSION_COOKIE,
+        value=session_value,
+        httponly=True,
+        samesite="lax",
+        max_age=SESSION_TTL,
+    )
+    return {"ok": True, "telegram_id": telegram_id}
+
+
+@app.post("/api/logout")
+def logout(response: Response):
+    response.delete_cookie(SESSION_COOKIE)
+    return {"ok": True}
+
+
+@app.get("/api/me")
+def me(opt_session: str | None = Cookie(default=None)):
+    telegram_id = _require_login(opt_session)
+    return {"telegram_id": telegram_id, "dashboard_url": DASHBOARD_URL}
+
+
 @app.get("/api/overview")
-def overview():
+def overview(opt_session: str | None = Cookie(default=None)):
+    _require_login(opt_session)
     _, _, nodes, totals, account_total, source_node = _load_current(include_details=True)
     running = sum(1 for node in nodes if node.get("status") == "running")
     down = len(nodes) - running
@@ -144,14 +239,15 @@ def overview():
 
 
 @app.get("/api/vps")
-def vps_list():
+def vps_list(opt_session: str | None = Cookie(default=None)):
+    _require_login(opt_session)
     data = load_vps()
     return {"vps": [{"name": name, "host": host} for name, host in sorted(data.items(), key=lambda item: item[0].lower())]}
 
 
 @app.post("/api/vps")
-def create_vps(payload: VpsPayload, x_dashboard_token: str | None = Header(default=None)):
-    _require_token(x_dashboard_token)
+def create_vps(payload: VpsPayload, opt_session: str | None = Cookie(default=None)):
+    telegram_id = _require_login(opt_session)
     name = _validate_vps_name(payload.name)
     host = _validate_vps_host(payload.host)
 
@@ -161,13 +257,13 @@ def create_vps(payload: VpsPayload, x_dashboard_token: str | None = Header(defau
 
     setup_result = _setup_key_if_password(host, payload.password)
     add_vps(name, host)
-    _notify_telegram(f"➕ VPS ditambahkan dari dashboard:\n- {name}: {host}")
+    _notify_telegram(f"➕ VPS ditambahkan dari dashboard oleh {telegram_id}:\n- {name}: {host}")
     return {"ok": True, "action": "created", "name": name, "host": host, **setup_result}
 
 
 @app.put("/api/vps/{old_name}")
-def edit_vps(old_name: str, payload: VpsPayload, x_dashboard_token: str | None = Header(default=None)):
-    _require_token(x_dashboard_token)
+def edit_vps(old_name: str, payload: VpsPayload, opt_session: str | None = Cookie(default=None)):
+    telegram_id = _require_login(opt_session)
     old_name = _validate_vps_name(old_name)
     new_name = _validate_vps_name(payload.name)
     host = _validate_vps_host(payload.host)
@@ -183,13 +279,13 @@ def edit_vps(old_name: str, payload: VpsPayload, x_dashboard_token: str | None =
     data.pop(old_name, None)
     data[new_name] = host
     save_vps(data)
-    _notify_telegram("✏️ VPS diedit dari dashboard:\n" f"- Lama: {old_name}: {old_host}\n" f"- Baru: {new_name}: {host}")
+    _notify_telegram("✏️ VPS diedit dari dashboard oleh " f"{telegram_id}:\n" f"- Lama: {old_name}: {old_host}\n" f"- Baru: {new_name}: {host}")
     return {"ok": True, "action": "updated", "old_name": old_name, "name": new_name, "host": host, **setup_result}
 
 
 @app.delete("/api/vps/{name}")
-def remove_vps(name: str, x_dashboard_token: str | None = Header(default=None)):
-    _require_token(x_dashboard_token)
+def remove_vps(name: str, opt_session: str | None = Cookie(default=None)):
+    telegram_id = _require_login(opt_session)
     name = _validate_vps_name(name)
     data = load_vps()
     host = data.get(name)
@@ -200,12 +296,13 @@ def remove_vps(name: str, x_dashboard_token: str | None = Header(default=None)):
     if not deleted:
         raise HTTPException(status_code=404, detail="VPS tidak ditemukan.")
 
-    _notify_telegram(f"❌ VPS dihapus dari dashboard:\n- {name}: {host}")
+    _notify_telegram(f"❌ VPS dihapus dari dashboard oleh {telegram_id}:\n- {name}: {host}")
     return {"ok": True, "action": "deleted", "name": name, "host": host}
 
 
 @app.get("/api/vps/{name}")
-def node_detail(name: str):
+def node_detail(name: str, opt_session: str | None = Cookie(default=None)):
+    _require_login(opt_session)
     vps_dict = load_vps()
     host = vps_dict.get(name)
     if not host:
@@ -219,7 +316,8 @@ def node_detail(name: str):
 
 
 @app.get("/api/vps/{name}/logs")
-def node_logs(name: str):
+def node_logs(name: str, opt_session: str | None = Cookie(default=None)):
+    _require_login(opt_session)
     vps_dict = load_vps()
     host = vps_dict.get(name)
     if not host:
@@ -231,8 +329,8 @@ def node_logs(name: str):
 
 
 @app.post("/api/vps/{name}/restart")
-def restart_node(name: str, x_dashboard_token: str | None = Header(default=None)):
-    _require_token(x_dashboard_token)
+def restart_node(name: str, opt_session: str | None = Cookie(default=None)):
+    telegram_id = _require_login(opt_session)
     vps_dict = load_vps()
     host = vps_dict.get(name)
     if not host:
@@ -243,14 +341,17 @@ def restart_node(name: str, x_dashboard_token: str | None = Header(default=None)
     if not output:
         raise HTTPException(status_code=500, detail="Restart command failed")
     clean = output.strip()
+    _notify_telegram(f"🛠 Restart node dari dashboard oleh {telegram_id}:\n- {name}: {host}")
     return {"name": name, "status": "running" if clean == "active" else clean, "raw": output}
 
 
 @app.get("/api/history/daily")
-def history_daily():
+def history_daily(opt_session: str | None = Cookie(default=None)):
+    _require_login(opt_session)
     return {"days": get_recent_days(limit=14)}
 
 
 @app.get("/api/history/weekly")
-def history_weekly():
+def history_weekly(opt_session: str | None = Cookie(default=None)):
+    _require_login(opt_session)
     return get_week_summary(end_date=current_local_date(), days=7)
