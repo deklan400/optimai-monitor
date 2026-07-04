@@ -6,7 +6,7 @@ import time
 from datetime import datetime
 
 from dotenv import load_dotenv
-from fastapi import Cookie, FastAPI, Header, HTTPException, Request, Response
+from fastapi import Cookie, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -30,8 +30,14 @@ ALLOWED_TELEGRAM_IDS = {
     for item in os.getenv("DASHBOARD_ALLOWED_TELEGRAM_IDS", CHAT_ID).split(",")
     if item.strip()
 }
-SESSION_SECRET = os.getenv("DASHBOARD_SESSION_SECRET", "").strip() or DASHBOARD_TOKEN or os.getenv("BOT_TOKEN", "") or "optimai-dashboard-session"
+SESSION_SECRET = (
+    os.getenv("DASHBOARD_SESSION_SECRET", "").strip()
+    or DASHBOARD_TOKEN
+    or os.getenv("BOT_TOKEN", "")
+    or "optimai-dashboard-session"
+)
 SESSION_COOKIE = "optimai_session"
+LEGACY_SESSION_COOKIE = "opt_session"
 SESSION_TTL = 60 * 60 * 24 * 7
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 WEB_DIR = os.path.join(BASE_DIR, "web")
@@ -84,6 +90,26 @@ def _parse_session(session_value: str | None):
     return telegram_id
 
 
+def _set_session_cookies(response: Response, session_value: str):
+    for cookie_name in (SESSION_COOKIE, LEGACY_SESSION_COOKIE):
+        response.set_cookie(
+            key=cookie_name,
+            value=session_value,
+            httponly=True,
+            samesite="lax",
+            max_age=SESSION_TTL,
+        )
+
+
+def _delete_session_cookies(response: Response):
+    response.delete_cookie(SESSION_COOKIE)
+    response.delete_cookie(LEGACY_SESSION_COOKIE)
+
+
+def _session_from_request(request: Request):
+    return request.cookies.get(SESSION_COOKIE) or request.cookies.get(LEGACY_SESSION_COOKIE)
+
+
 def _require_login(opt_session: str | None = Cookie(default=None)):
     telegram_id = _parse_session(opt_session)
     if not telegram_id:
@@ -92,13 +118,16 @@ def _require_login(opt_session: str | None = Cookie(default=None)):
 
 
 def _page_is_logged_in(request: Request) -> bool:
-    return bool(_parse_session(request.cookies.get(SESSION_COOKIE)))
+    return bool(_parse_session(_session_from_request(request)))
 
 
 def _validate_vps_name(name):
     clean = (name or "").strip()
     if not VPS_NAME_RE.fullmatch(clean):
-        raise HTTPException(status_code=400, detail="Nama VPS hanya boleh huruf, angka, underscore, dan strip. Maksimal 32 karakter.")
+        raise HTTPException(
+            status_code=400,
+            detail="Nama VPS hanya boleh huruf, angka, underscore, dan strip. Maksimal 32 karakter.",
+        )
     return clean
 
 
@@ -176,9 +205,13 @@ def _load_current(include_details=False):
 
 @app.get("/")
 def index(request: Request):
-    if not _page_is_logged_in(request):
+    session_value = _session_from_request(request)
+    if not _parse_session(session_value):
         return RedirectResponse("/login", status_code=302)
-    return FileResponse(os.path.join(WEB_DIR, "index.html"))
+
+    response = FileResponse(os.path.join(WEB_DIR, "index.html"))
+    _set_session_cookies(response, session_value)
+    return response
 
 
 @app.get("/login")
@@ -195,19 +228,13 @@ def login(payload: LoginPayload, response: Response):
         raise HTTPException(status_code=401, detail="Telegram ID tidak diizinkan.")
 
     session_value = _make_session(telegram_id)
-    response.set_cookie(
-        key=SESSION_COOKIE,
-        value=session_value,
-        httponly=True,
-        samesite="lax",
-        max_age=SESSION_TTL,
-    )
+    _set_session_cookies(response, session_value)
     return {"ok": True, "telegram_id": telegram_id}
 
 
 @app.post("/api/logout")
 def logout(response: Response):
-    response.delete_cookie(SESSION_COOKIE)
+    _delete_session_cookies(response)
     return {"ok": True}
 
 
@@ -223,7 +250,13 @@ def overview(opt_session: str | None = Cookie(default=None)):
     _, _, nodes, totals, account_total, source_node = _load_current(include_details=True)
     running = sum(1 for node in nodes if node.get("status") == "running")
     down = len(nodes) - running
-    ranking = sorted(nodes, key=lambda node: (-int((node.get("metrics") or {}).get("submitted", 0) or 0), node.get("name") or ""))[:5]
+    ranking = sorted(
+        nodes,
+        key=lambda node: (
+            -int((node.get("metrics") or {}).get("submitted", 0) or 0),
+            node.get("name") or "",
+        ),
+    )[:5]
     return {
         "generated_at": datetime.now().isoformat(timespec="seconds"),
         "date": str(current_local_date()),
