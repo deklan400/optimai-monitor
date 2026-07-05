@@ -1,6 +1,13 @@
 (function(){
   const esc=t=>String(t??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 
+  async function api(path,opt={}){
+    const res=await fetch(path,opt);
+    if(res.status===401){location.href='/login';throw new Error('Login required')}
+    if(!res.ok){let m=await res.text();try{m=JSON.parse(m).detail||m}catch(e){}throw new Error(m)}
+    return res.json();
+  }
+
   function ensureInstallNodeMenu(){
     if(!document.getElementById('install-node-optimai')){
       document.querySelector('main.main').insertAdjacentHTML('beforeend','<section id="install-node-optimai" class="page hidden"></section>');
@@ -10,17 +17,11 @@
     }
   }
 
-  function nodeStatusText(n){
-    if(n.status==='running') return '✅ Running';
-    return '⚠️ Belum running / belum install';
+  function buildInstallCommand(host){
+    return `ssh -tt ${host} "curl -fsSL https://raw.githubusercontent.com/deklan400/optimai-monitor/main/scripts/install_optimai_node.sh -o /tmp/install_optimai_node.sh && bash /tmp/install_optimai_node.sh"`;
   }
 
-  function buildInstallCommand(host,email){
-    const safeEmail = String(email||'EMAIL_LU').replace(/'/g,'');
-    return `ssh ${host}\n\napt update -y && apt upgrade -y && \\\napt install -y curl docker.io && \\\nsystemctl start docker && systemctl enable docker && \\\nrm -f /usr/local/bin/optimai-cli && rm -rf ~/.optimai && \\\ncurl -L https://optimai.network/download/cli-node/linux -o optimai-cli && \\\nchmod +x optimai-cli && mv optimai-cli /usr/local/bin/optimai-cli && \\\noptimai-cli auth login --email ${safeEmail} && \\\ncat <<'EOF' > /etc/systemd/system/optimai.service\n[Unit]\nDescription=OptimAI Node\nAfter=docker.service\nRequires=docker.service\n\n[Service]\nType=simple\nUser=root\nExecStart=/usr/local/bin/optimai-cli node start\nRestart=always\nRestartSec=15\n\n[Install]\nWantedBy=multi-user.target\nEOF\nsystemctl daemon-reload && \\\nsystemctl enable optimai && \\\nsystemctl start optimai && \\\nsleep 3 && \\\nsystemctl status optimai --no-pager`;
-  }
-
-  window.showInstallNodePage=function(){
+  window.showInstallNodePage=async function(){
     ensureInstallNodeMenu();
     document.querySelectorAll('.page').forEach(x=>x.classList.add('hidden'));
     document.getElementById('install-node-optimai').classList.remove('hidden');
@@ -28,22 +29,29 @@
     document.getElementById('page-title').textContent='Install Node OptimAI';
     document.getElementById('sub-title').textContent='Pilih VPS target lalu generate command install';
 
-    const nodes=(window.state&&state.nodes)||[];
-    const options=nodes.map(n=>`<option value="${esc(n.host||'')}">${esc(n.name)} — ${esc(n.host||'')}</option>`).join('');
-    const rows=nodes.map(n=>`<tr><td><b>${esc(n.name)}</b><div class="host">${esc(n.host||'')}</div></td><td>${nodeStatusText(n)}</td><td><button class="btn small ok" onclick="pickInstallNode('${esc(n.host||'')}')">Pilih</button></td></tr>`).join('');
+    const el=document.getElementById('install-node-optimai');
+    el.innerHTML='<div class="panel"><h3>📦 Install Node OptimAI</h3><p class="muted">Loading daftar VPS...</p></div>';
 
-    document.getElementById('install-node-optimai').innerHTML=`
-      <div class="panel">
-        <h3>📦 Install Node OptimAI</h3>
-        <p class="muted">Password OptimAI tidak lewat Telegram. Isi email, pilih VPS, lalu generate command.</p>
-        <div class="form">
-          <div class="form-row"><label>Pilih VPS Target</label><select id="install-host" class="form-input">${options}</select></div>
-          <div class="form-row"><label>Email OptimAI</label><input id="install-email" class="form-input" placeholder="email@domain.com"></div>
-          <div class="form-actions"><button class="btn ok" onclick="generateInstallCommand()">Generate Command</button></div>
+    try{
+      const data=await api('/api/vps');
+      const nodes=data.vps||[];
+      const options=nodes.map(n=>`<option value="${esc(n.host||'')}">${esc(n.name)} — ${esc(n.host||'')}</option>`).join('');
+      const rows=nodes.map(n=>`<tr><td><b>${esc(n.name)}</b><div class="host">${esc(n.host||'')}</div></td><td>Siap install / cek manual</td><td><button class="btn small ok" onclick="pickInstallNode('${esc(n.host||'')}')">Pilih</button></td></tr>`).join('');
+
+      el.innerHTML=`
+        <div class="panel">
+          <h3>📦 Install Node OptimAI</h3>
+          <p class="muted">Pilih VPS, lalu generate command. Nanti saat command jalan di terminal, OptimAI akan minta email dan password secara manual.</p>
+          <div class="form">
+            <div class="form-row"><label>Pilih VPS Target</label><select id="install-host" class="form-input">${options}</select></div>
+            <div class="form-actions"><button class="btn ok" onclick="generateInstallCommand()">Generate Command</button></div>
+          </div>
+          <div id="install-output" style="margin-top:16px"></div>
         </div>
-        <div id="install-output" style="margin-top:16px"></div>
-      </div>
-      <div class="panel"><h3>Daftar VPS</h3><table><thead><tr><th>VPS</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${rows||'<tr><td colspan="3">Belum ada VPS terdaftar.</td></tr>'}</tbody></table></div>`;
+        <div class="panel"><h3>Daftar VPS</h3><table><thead><tr><th>VPS</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${rows||'<tr><td colspan="3">Belum ada VPS terdaftar.</td></tr>'}</tbody></table></div>`;
+    }catch(e){
+      el.innerHTML=`<div class="panel"><div class="notice">Error: ${esc(e.message)}</div></div>`;
+    }
   };
 
   window.pickInstallNode=function(host){
@@ -54,10 +62,9 @@
 
   window.generateInstallCommand=function(){
     const host=document.getElementById('install-host')?.value||'';
-    const email=document.getElementById('install-email')?.value.trim()||'';
-    if(!host || !email){alert('Pilih VPS dan isi email dulu bro');return;}
-    const cmd=buildInstallCommand(host,email);
-    document.getElementById('install-output').innerHTML=`<div class="notice">Copy command ini, paste di terminal VPS bot. Kalau OptimAI minta password, isi manual di terminal.</div><pre>${esc(cmd)}</pre>`;
+    if(!host){alert('Pilih VPS dulu bro');return;}
+    const cmd=buildInstallCommand(host);
+    document.getElementById('install-output').innerHTML=`<div class="notice">Copy command ini ke terminal VPS bot. Setelah jalan, installer akan minta email OptimAI lalu password/verify dari CLI.</div><pre>${esc(cmd)}</pre>`;
   };
 
   ensureInstallNodeMenu();
