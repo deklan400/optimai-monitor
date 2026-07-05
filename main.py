@@ -5,6 +5,13 @@ from services.telegram_bot import start_menu_listener
 from utils.logger import log
 import threading
 
+try:
+    import services.telegram_bot as telegram_bot
+    from services.node_install_advisor import patch_telegram_bot
+    patch_telegram_bot(telegram_bot)
+except Exception as exc:
+    print(f"[WARN] node install advisor disabled: {exc}")
+
 
 def main():
     log("=== OPTIMAI MONITOR STARTED ===")
